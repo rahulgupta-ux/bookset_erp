@@ -1,0 +1,329 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  double todaySales = 0;
+
+  int booksSold = 0;
+
+  int inventoryCount = 0;
+
+  int recentOrders = 0;
+
+  int schoolSales = 0;
+
+  bool isLoading = true;
+
+  List<Map<String, dynamic>> recentSales = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    loadDashboard();
+  }
+
+  Future<void> loadDashboard() async {
+    try {
+      double sales = 0;
+
+      int soldBooks = 0;
+
+      int schoolSaleCount = 0;
+
+      int inventory = 0;
+
+      List<Map<String, dynamic>> salesList = [];
+
+      final today = DateTime.now();
+
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      final salesSnapshot = await FirebaseFirestore.instance
+          .collection("sales")
+          .where(
+            "timestamp",
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+          )
+          .where("timestamp", isLessThan: Timestamp.fromDate(endOfDay))
+          .get();
+
+      for (var doc in salesSnapshot.docs) {
+        final data = doc.data();
+
+        sales += (data["amount"] ?? 0).toDouble();
+
+        final books = data["books"] as List?;
+
+        soldBooks += books?.length ?? 0;
+
+        if (data["soldToSchool"] == true) {
+          schoolSaleCount++;
+        }
+
+        salesList.add(data);
+      }
+
+      final inventorySnapshot = await FirebaseFirestore.instance
+          .collection("inventory")
+          .get();
+
+      for (var doc in inventorySnapshot.docs) {
+        final data = doc.data();
+
+        final sold = data.containsKey("sold") ? data["sold"] : false;
+        if (!sold) {
+          inventory++;
+        }
+      }
+
+      setState(() {
+        todaySales = sales;
+
+        booksSold = soldBooks;
+
+        schoolSales = schoolSaleCount;
+
+        inventoryCount = inventory;
+
+        recentSales = salesList.reversed.take(5).toList();
+
+        isLoading = false;
+      });
+    } catch (e) {
+      print(e);
+
+      setState(() {
+        isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error loading dashboard: $e")));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return RefreshIndicator(
+      onRefresh: loadDashboard,
+
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+
+            children: [
+              const Text(
+                "Dashboard",
+
+                style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 25),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildCard(
+                      title: "Today's Sales",
+
+                      value: "₹${todaySales.toStringAsFixed(0)}",
+
+                      icon: Icons.currency_rupee,
+
+                      color: Colors.green,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: _buildCard(
+                      title: "Sets Sold",
+
+                      value: "$booksSold",
+
+                      icon: Icons.shopping_cart,
+
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildCard(
+                      title: "School Sales",
+
+                      value: "$schoolSales",
+
+                      icon: Icons.school,
+
+                      color: Colors.orange,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: _buildCard(
+                      title: "Available Stock",
+
+                      value: "$inventoryCount",
+
+                      icon: Icons.inventory,
+
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 30),
+
+              const Text(
+                "Recent Sales",
+
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 15),
+
+              if (recentSales.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+
+                    child: Text(
+                      "No Sales Today",
+
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
+                ),
+
+              ...recentSales.map((sale) {
+                return _buildRecentSale(
+                  school: sale["soldToSchool"] == true
+                      ? "School Sale"
+                      : "Retail Sale",
+
+                  amount: "₹${sale["amount"]}",
+                );
+              }),
+
+              const SizedBox(height: 30),
+
+              SizedBox(
+                width: double.infinity,
+
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Use Scan Screen For Sales"),
+                      ),
+                    );
+                  },
+
+                  icon: const Icon(Icons.qr_code_scanner),
+
+                  label: const Text(
+                    "Start New Sale",
+
+                    style: TextStyle(fontSize: 18),
+                  ),
+
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCard({
+    required String title,
+
+    required String value,
+
+    required IconData icon,
+
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+
+        borderRadius: BorderRadius.circular(16),
+      ),
+
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+          Icon(icon, color: color, size: 32),
+
+          const SizedBox(height: 15),
+
+          Text(
+            value,
+
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+
+          const SizedBox(height: 5),
+
+          Text(title, style: const TextStyle(fontSize: 16)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentSale({required String school, required String amount}) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+
+      child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.menu_book)),
+
+        title: Text(school),
+
+        trailing: Text(
+          amount,
+
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+      ),
+    );
+  }
+}
