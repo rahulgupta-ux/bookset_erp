@@ -1,11 +1,12 @@
+import 'package:audioplayers/audioplayers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vibration/vibration.dart';
-import 'package:audioplayers/audioplayers.dart';
-
+import 'dart:ui';
 import '../models/book_set.dart';
 import 'cart_screen.dart';
+// import '../services/update_service.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -14,41 +15,43 @@ class ScanScreen extends StatefulWidget {
   State<ScanScreen> createState() => _ScanScreenState();
 }
 
-class _ScanScreenState extends State<ScanScreen> {
-  bool isProcessing = false;
-
-  List<BookSet> cartItems = [];
-
-  double total = 0;
-
-  final Set<String> scannedQrsInCart = {};
+class _ScanScreenState extends State<ScanScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  final MobileScannerController scannerController = MobileScannerController();
+  double zoomScale = 0.0;
 
   final AudioPlayer player = AudioPlayer();
 
+  List<BookSet> cartItems = [];
+
+  bool isScanning = false;
+
+  double total = 0;
+  bool animateBox = false;
+  bool scanSuccess = false;
+  bool cartBounce = false;
+  bool showManualSubmit = false;
+
   final TextEditingController manualQrController = TextEditingController();
 
-  Future<void> addItemToCart(String qrId) async {
-    qrId = qrId.trim();
+  final Set<String> scannedQrsInCart = {};
 
-    if (isProcessing || qrId.isEmpty) {
+  Future<void> scanQr(String qrId) async {
+    if (isScanning) return;
+
+    if (scannedQrsInCart.contains(qrId)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Already Added")));
+
       return;
     }
 
-    setState(() {
-      isProcessing = true;
-    });
+    isScanning = true;
 
     try {
-      // Prevent duplicate cart scan
-      if (scannedQrsInCart.contains(qrId)) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Already In Cart")));
-
-        return;
-      }
-
-      // SEARCH QR IN ALL qrs SUBCOLLECTIONS
       final qrQuery = await FirebaseFirestore.instance
           .collectionGroup("qrs")
           .get();
@@ -68,12 +71,13 @@ class _ScanScreenState extends State<ScanScreen> {
           context,
         ).showSnackBar(const SnackBar(content: Text("QR Not Found")));
 
+        isScanning = false;
+
         return;
       }
 
       final qrData = qrDoc.data() as Map<String, dynamic>;
 
-      // CHECK SOLD
       final sold = (qrData["sold"] ?? false) as bool;
 
       if (sold) {
@@ -81,186 +85,514 @@ class _ScanScreenState extends State<ScanScreen> {
           context,
         ).showSnackBar(const SnackBar(content: Text("Already Sold")));
 
-        return;
-      }
-
-      // GET PARENT PRODUCT DOCUMENT
-
-      final productDoc = await qrDoc.reference.parent.parent!.get();
-
-      if (!productDoc.exists) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Product Missing")));
+        isScanning = false;
 
         return;
       }
 
-      final productData = productDoc.data()!;
+      final parentDoc = await qrDoc.reference.parent.parent!.get();
 
-      // CREATE CART ITEM
-      final bookSet = BookSet(
+      final parentData = parentDoc.data() as Map<String, dynamic>;
+
+      final price = parentData["price"] ?? 0;
+
+      final book = BookSet(
+        school: parentData["school"],
+
+        className: parentData["className"],
+
         qrId: qrId,
 
-        school: productData["school"],
-
-        className: productData["className"],
-
-        price: productData["price"],
+        price: price,
 
         stock: 1,
       );
 
-      setState(() {
-        cartItems.add(bookSet);
+      scannedQrsInCart.add(qrId);
 
-        scannedQrsInCart.add(qrId);
-
-        total += bookSet.price;
-      });
-
-      // BEEP SOUND
       await player.play(AssetSource('sounds/beep2.wav'));
 
-      // VIBRATION
       if (await Vibration.hasVibrator() ?? false) {
-        Vibration.vibrate(duration: 120, amplitude: 128);
+        Vibration.vibrate(duration: 80);
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Added: ${bookSet.school} ${bookSet.className}"),
+      setState(() {
+        cartItems.add(book);
 
-          duration: const Duration(seconds: 1),
-        ),
-      );
+        total += book.price;
+      });
+      triggerScanSuccess();
+      triggerCartBounce();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("${book.className} Added")));
     } catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));
-    } finally {
-      if (mounted) {
-        setState(() {
-          isProcessing = false;
-        });
-      }
     }
+
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    isScanning = false;
+  }
+
+  Future<void> triggerScanSuccess() async {
+    setState(() {
+      scanSuccess = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
+    setState(() {
+      scanSuccess = false;
+    });
+  }
+
+  Future<void> triggerCartBounce() async {
+    setState(() {
+      cartBounce = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 180));
+
+    if (!mounted) return;
+
+    setState(() {
+      cartBounce = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    scannerController.dispose();
+
+    player.dispose();
+
+    super.dispose();
+    manualQrController.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    startBoxAnimation();
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   UpdateService.checkForUpdates(context);
+    // });
+  }
+
+  void startBoxAnimation() {
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(milliseconds: 900));
+
+      if (!mounted) {
+        return false;
+      }
+
+      setState(() {
+        animateBox = !animateBox;
+      });
+
+      return true;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    super.build(context);
 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
+    return Scaffold(
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Stack(
           children: [
-            const Text(
-              "Scan Book Set",
+            // CAMERA
+            GestureDetector(
+              onVerticalDragUpdate: (details) async {
+                if (details.delta.dy < 0) {
+                  // ZOOM IN
+                  zoomScale += 0.05;
+                } else {
+                  // ZOOM OUT
+                  zoomScale -= 0.05;
+                }
 
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                // LIMITS
+                zoomScale = zoomScale.clamp(0.0, 1.0);
+
+                await scannerController.setZoomScale(zoomScale);
+
+                setState(() {});
+              },
+
+              child: MobileScanner(
+                controller: scannerController,
+
+                onDetect: (capture) {
+                  final barcode = capture.barcodes.first;
+
+                  final code = barcode.rawValue;
+
+                  if (code != null) {
+                    scanQr(code.trim());
+                  }
+                },
+              ),
             ),
 
-            const SizedBox(height: 20),
+            // DARK OVERLAY
+            Container(color: Colors.black.withOpacity(0.25)),
 
-            Container(
-              height: 350,
+            // SCAN BOX
+            Center(
+              child: Transform.translate(
+                offset: const Offset(0, -70),
 
-              width: double.infinity,
+                child: AnimatedScale(
+                  scale: animateBox ? 0.97 : 1.0,
 
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                  duration: const Duration(milliseconds: 900),
+
+                  curve: Curves.easeInOut,
+
+                  child: SizedBox(
+                    width: 260,
+
+                    height: 260,
+
+                    child: Stack(
+                      children: [
+                        // TOP LEFT
+                        Positioned(
+                          top: 0,
+
+                          left: 0,
+
+                          child: Container(
+                            width: 45,
+
+                            height: 45,
+
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: BorderSide(
+                                  color: scanSuccess
+                                      ? Colors.greenAccent
+                                      : Colors.grey,
+                                  width: 5,
+                                ),
+
+                                left: BorderSide(
+                                  color: scanSuccess
+                                      ? Colors.greenAccent
+                                      : Colors.grey,
+                                  width: 5,
+                                ),
+                              ),
+                              boxShadow: [
+                                if (scanSuccess)
+                                  BoxShadow(
+                                    color: Colors.greenAccent.withOpacity(0.8),
+
+                                    blurRadius: 12,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // TOP RIGHT
+                        Positioned(
+                          top: 0,
+
+                          right: 0,
+
+                          child: Container(
+                            width: 45,
+
+                            height: 45,
+
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: BorderSide(
+                                  color: scanSuccess
+                                      ? Colors.greenAccent
+                                      : Colors.grey,
+                                  width: 5,
+                                ),
+
+                                right: BorderSide(
+                                  color: scanSuccess
+                                      ? Colors.greenAccent
+                                      : Colors.grey,
+                                  width: 5,
+                                ),
+                              ),
+                              boxShadow: [
+                                if (scanSuccess)
+                                  BoxShadow(
+                                    color: Colors.greenAccent.withOpacity(0.8),
+
+                                    blurRadius: 12,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // BOTTOM LEFT
+                        Positioned(
+                          bottom: 0,
+
+                          left: 0,
+
+                          child: Container(
+                            width: 45,
+
+                            height: 45,
+
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: scanSuccess
+                                      ? Colors.greenAccent
+                                      : Colors.grey,
+                                  width: 5,
+                                ),
+
+                                left: BorderSide(
+                                  color: scanSuccess
+                                      ? Colors.greenAccent
+                                      : Colors.grey,
+                                  width: 5,
+                                ),
+                              ),
+                              boxShadow: [
+                                if (scanSuccess)
+                                  BoxShadow(
+                                    color: Colors.greenAccent.withOpacity(0.8),
+
+                                    blurRadius: 12,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // BOTTOM RIGHT
+                        Positioned(
+                          bottom: 0,
+
+                          right: 0,
+
+                          child: Container(
+                            width: 45,
+
+                            height: 45,
+
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: scanSuccess
+                                      ? Colors.greenAccent
+                                      : Colors.grey,
+                                  width: 5,
+                                ),
+
+                                right: BorderSide(
+                                  color: scanSuccess
+                                      ? Colors.greenAccent
+                                      : Colors.grey,
+                                  width: 5,
+                                ),
+                              ),
+                              boxShadow: [
+                                if (scanSuccess)
+                                  BoxShadow(
+                                    color: Colors.greenAccent.withOpacity(0.8),
+
+                                    blurRadius: 12,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
+            ),
+
+            Positioned(
+              bottom: 130,
+
+              left: 35,
+
+              right: 35,
+
+              child: Column(
+                children: [
+                  // INPUT BOX
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.5),
+
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+
+                        child: TextField(
+                          controller: manualQrController,
+
+                          style: const TextStyle(color: Colors.white),
+
+                          onChanged: (value) {
+                            setState(() {
+                              showManualSubmit = value.trim().isNotEmpty;
+                            });
+                          },
+
+                          decoration: const InputDecoration(
+                            hintText: "Enter QR ID Manually",
+
+                            hintStyle: TextStyle(color: Colors.white70),
+
+                            border: InputBorder.none,
+
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 20,
+
+                              vertical: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // SUBMIT BUTTON
+                  AnimatedOpacity(
+                    opacity: showManualSubmit ? 1 : 0,
+
+                    duration: const Duration(milliseconds: 250),
+
+                    child: showManualSubmit
+                        ? GestureDetector(
+                            onTap: () {
+                              final qr = manualQrController.text.trim();
+
+                              if (qr.isNotEmpty) {
+                                scanQr(qr);
+
+                                manualQrController.clear();
+
+                                setState(() {
+                                  showManualSubmit = false;
+                                });
+                              }
+                            },
+
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 28,
+
+                                vertical: 14,
+                              ),
+
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+
+                              child: const Text(
+                                "Submit",
+
+                                style: TextStyle(
+                                  color: Colors.white,
+
+                                  fontSize: 17,
+
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          )
+                        : const SizedBox(),
+                  ),
+                ],
+              ),
+            ),
+
+            // TOTAL AMOUNT
+            Positioned(
+              top: 55,
+
+              right: 20,
 
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(18),
 
-                child: MobileScanner(
-                  onDetect: (capture) async {
-                    if (isProcessing) {
-                      return;
-                    }
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
 
-                    final barcodes = capture.barcodes;
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
 
-                    for (final barcode in barcodes) {
-                      final code = barcode.rawValue ?? "";
+                      vertical: 12,
+                    ),
 
-                      if (code.isNotEmpty) {
-                        await addItemToCart(code);
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.12),
 
-                        break;
-                      }
-                    }
-                  },
+                      borderRadius: BorderRadius.circular(18),
+
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+
+                    child: Text(
+                      "₹${total.toInt()}",
+
+                      style: const TextStyle(
+                        color: Colors.white,
+
+                        fontSize: 24,
+
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 30),
+            // GO TO CART BUTTON
+            Positioned(
+              bottom: 30,
 
-            const Center(
-              child: Text(
-                "OR",
+              left: 130,
 
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
+              right: 130,
 
-            const SizedBox(height: 30),
-
-            const Text(
-              "Enter QR ID Manually",
-
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 15),
-
-            TextField(
-              controller: manualQrController,
-
-              decoration: InputDecoration(
-                hintText: "Enter QR ID",
-
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-
-                prefixIcon: const Icon(Icons.edit),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            SizedBox(
-              width: double.infinity,
-
-              child: ElevatedButton(
-                onPressed: isProcessing
-                    ? null
-                    : () async {
-                        await addItemToCart(manualQrController.text.trim());
-
-                        manualQrController.clear();
-                      },
-
-                child: const Text("Add To Cart"),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            SizedBox(
-              width: double.infinity,
-
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-
-                onPressed: () async {
-                  final updatedCart = await Navigator.push<List<BookSet>>(
+              child: GestureDetector(
+                onTap: () async {
+                  final updatedCart = await Navigator.push(
                     context,
 
                     MaterialPageRoute(
@@ -270,68 +602,81 @@ class _ScanScreenState extends State<ScanScreen> {
 
                   if (updatedCart != null) {
                     setState(() {
-                      cartItems = updatedCart;
-
-                      total = cartItems.fold(
-                        0,
-
-                        (sum, item) => sum + item.price,
-                      );
+                      cartItems = List<BookSet>.from(updatedCart);
 
                       scannedQrsInCart.clear();
 
+                      total = 0;
+
                       for (var item in cartItems) {
                         scannedQrsInCart.add(item.qrId);
+
+                        total += item.price;
                       }
                     });
                   }
                 },
 
-                child: Text(
-                  "Go To Cart (${cartItems.length})",
+                child: AnimatedScale(
+                  scale: cartBounce ? 2.00 : 1.0,
 
-                  style: const TextStyle(fontSize: 18),
-                ),
-              ),
-            ),
+                  duration: const Duration(milliseconds: 3000),
 
-            const SizedBox(height: 20),
+                  curve: Curves.easeOut,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 1,
+                        ),
 
-            Container(
-              width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.75),
 
-              padding: const EdgeInsets.all(16),
+                          borderRadius: BorderRadius.circular(30),
 
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
 
-                borderRadius: BorderRadius.circular(15),
-              ),
+                              blurRadius: 10,
 
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
 
-                children: [
-                  const Text(
-                    "Cart Summary",
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
 
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                          children: [
+                            const Icon(
+                              Icons.shopping_cart,
+                              color: Colors.white,
+                            ),
 
-                  const SizedBox(height: 8),
+                            const SizedBox(width: 5),
 
-                  Text("Items: ${cartItems.length}"),
+                            Text(
+                              "Cart (${cartItems.length})",
 
-                  Text(
-                    "Total: ₹${total.toStringAsFixed(0)}",
+                              style: const TextStyle(
+                                color: Colors.white,
 
-                    style: const TextStyle(
-                      fontSize: 18,
+                                fontSize: 14,
 
-                      fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ],

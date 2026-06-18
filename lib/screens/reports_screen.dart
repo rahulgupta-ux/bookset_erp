@@ -8,7 +8,8 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> {
+class _ReportsScreenState extends State<ReportsScreen>
+    with AutomaticKeepAliveClientMixin {
   String? selectedSchool;
 
   bool isLoading = false;
@@ -18,6 +19,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   int totalRevenue = 0;
 
   List<String> schools = [];
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -123,6 +126,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16),

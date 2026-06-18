@@ -12,7 +12,8 @@ class InventoryScreen extends StatefulWidget {
   State<InventoryScreen> createState() => _InventoryScreenState();
 }
 
-class _InventoryScreenState extends State<InventoryScreen> {
+class _InventoryScreenState extends State<InventoryScreen>
+    with AutomaticKeepAliveClientMixin {
   final stockController = TextEditingController();
   final searchController = TextEditingController();
   String searchText = "";
@@ -24,6 +25,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   String generatedQr = "";
   List<String> generatedQrs = [];
   File? selectedImage;
+  @override
+  bool get wantKeepAlive => true;
   @override
   void initState() {
     super.initState();
@@ -188,6 +191,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'check_info_screen.dart';
 
 class PriceListScreen extends StatefulWidget {
   const PriceListScreen({super.key});
@@ -7,19 +8,42 @@ class PriceListScreen extends StatefulWidget {
   State<PriceListScreen> createState() => _PriceListScreenState();
 }
 
-class _PriceListScreenState extends State<PriceListScreen> {
+class _PriceListScreenState extends State<PriceListScreen>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController searchController = TextEditingController();
   String searchText = "";
   @override
+  bool get wantKeepAlive => true;
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Price List",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+            children: [
+              const Text(
+                "Price List",
+
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+
+                    MaterialPageRoute(builder: (_) => const CheckInfoScreen()),
+                  );
+                },
+
+                icon: const Icon(Icons.info, size: 30),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           TextField(

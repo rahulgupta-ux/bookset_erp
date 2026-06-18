@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'sales_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -8,7 +9,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   double todaySales = 0;
 
   int booksSold = 0;
@@ -22,6 +24,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isLoading = true;
 
   List<Map<String, dynamic>> recentSales = [];
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -115,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -132,10 +138,30 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
 
             children: [
-              const Text(
-                "Dashboard",
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                children: [
+                  const Text(
+                    "Dashboard",
+
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+
+                        MaterialPageRoute(
+                          builder: (_) => const SalesHistoryScreen(),
+                        ),
+                      );
+                    },
+
+                    icon: const Icon(Icons.history, size: 30),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 25),
@@ -236,32 +262,6 @@ class _HomeScreenState extends State<HomeScreen> {
               }),
 
               const SizedBox(height: 30),
-
-              SizedBox(
-                width: double.infinity,
-
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Use Scan Screen For Sales"),
-                      ),
-                    );
-                  },
-
-                  icon: const Icon(Icons.qr_code_scanner),
-
-                  label: const Text(
-                    "Start New Sale",
-
-                    style: TextStyle(fontSize: 18),
-                  ),
-
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
