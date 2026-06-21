@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'sales_history_screen.dart';
+import '../core/theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -122,147 +123,166 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     super.build(context);
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.primary),
+      );
     }
 
-    return RefreshIndicator(
-      onRefresh: loadDashboard,
+    return SafeArea(
+      child: RefreshIndicator(
+        onRefresh: loadDashboard,
 
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
 
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
 
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
 
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
-                children: [
-                  const Text(
-                    "Dashboard",
+                  children: [
+                    const Text(
+                      "BookSet ERP",
 
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-
-                  IconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-
-                        MaterialPageRoute(
-                          builder: (_) => const SalesHistoryScreen(),
-                        ),
-                      );
-                    },
-
-                    icon: const Icon(Icons.history, size: 30),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 25),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildCard(
-                      title: "Today's Sales",
-
-                      value: "₹${todaySales.toStringAsFixed(0)}",
-
-                      icon: Icons.currency_rupee,
-
-                      color: Colors.green,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(width: 12),
+                    IconButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
 
-                  Expanded(
-                    child: _buildCard(
-                      title: "Sets Sold",
+                          MaterialPageRoute(
+                            builder: (_) => const SalesHistoryScreen(),
+                          ),
+                        );
+                      },
 
-                      value: "$booksSold",
-
-                      icon: Icons.shopping_cart,
-
-                      color: Colors.blue,
+                      icon: const Icon(
+                        Icons.history,
+                        size: 30,
+                        color: AppTheme.primary,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
 
-              const SizedBox(height: 12),
+                const SizedBox(height: 25),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildCard(
-                      title: "School Sales",
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildCard(
+                        title: "Today's Sales",
 
-                      value: "$schoolSales",
+                        value: "₹${todaySales.toStringAsFixed(0)}",
 
-                      icon: Icons.school,
+                        icon: Icons.currency_rupee,
 
-                      color: Colors.orange,
+                        color: AppTheme.success,
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
 
-                  Expanded(
-                    child: _buildCard(
-                      title: "Available Stock",
+                    Expanded(
+                      child: _buildCard(
+                        title: "Sets Sold",
 
-                      value: "$inventoryCount",
+                        value: "$booksSold",
 
-                      icon: Icons.inventory,
+                        icon: Icons.shopping_cart,
 
-                      color: Colors.red,
+                        color: AppTheme.info,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
 
-              const SizedBox(height: 30),
+                const SizedBox(height: 12),
 
-              const Text(
-                "Recent Sales",
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildCard(
+                        title: "School Sales",
 
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
+                        value: "$schoolSales",
 
-              const SizedBox(height: 15),
+                        icon: Icons.school,
 
-              if (recentSales.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-
-                    child: Text(
-                      "No Sales Today",
-
-                      style: TextStyle(fontSize: 18),
+                        color: AppTheme.warning,
+                      ),
                     ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: _buildCard(
+                        title: "Available Stock",
+
+                        value: "$inventoryCount",
+
+                        icon: Icons.inventory,
+
+                        color: AppTheme.danger,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+
+                const Text(
+                  "Recent Sales",
+
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
 
-              ...recentSales.map((sale) {
-                return _buildRecentSale(
-                  school: sale["soldToSchool"] == true
-                      ? "School Sale"
-                      : "Retail Sale",
+                const SizedBox(height: 15),
 
-                  amount: "₹${sale["amount"]}",
-                );
-              }),
+                if (recentSales.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
 
-              const SizedBox(height: 30),
-            ],
+                      child: Text(
+                        "No Sales Today",
+
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ...recentSales.map((sale) {
+                  return _buildRecentSale(
+                    school: sale["soldToSchool"] == true
+                        ? "School Sale"
+                        : "Retail Sale",
+
+                    amount: "₹${sale["amount"]}",
+                  );
+                }),
+
+                const SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),
@@ -271,57 +291,75 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildCard({
     required String title,
-
     required String value,
-
     required IconData icon,
-
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
-
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
-          Icon(icon, color: color, size: 32),
+          Icon(icon, color: color, size: 30),
 
           const SizedBox(height: 15),
 
           Text(
             value,
-
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+            ),
           ),
 
-          const SizedBox(height: 5),
+          const SizedBox(height: 6),
 
-          Text(title, style: const TextStyle(fontSize: 16)),
+          Text(
+            title,
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildRecentSale({required String school, required String amount}) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 10),
-
+      decoration: BoxDecoration(
+        color: AppTheme.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+      ),
       child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.menu_book)),
-
-        title: Text(school),
-
+        leading: const CircleAvatar(
+          backgroundColor: AppTheme.primary,
+          child: Icon(Icons.menu_book, color: Colors.white),
+        ),
+        title: Text(
+          school,
+          style: const TextStyle(color: AppTheme.textPrimary),
+        ),
         trailing: Text(
           amount,
-
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
         ),
       ),
     );

@@ -127,147 +127,199 @@ class _ReportsScreenState extends State<ReportsScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
 
-          children: [
-            const Text(
-              "Reports",
+            children: [
+              const Text(
+                "Reports",
 
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 20),
-
-            // SCHOOL DROPDOWN
-            DropdownButtonFormField<String>(
-              value: selectedSchool,
-
-              decoration: InputDecoration(
-                labelText: "Select School",
-
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
 
-              items: schools.map((school) {
-                return DropdownMenuItem(value: school, child: Text(school));
-              }).toList(),
+              const SizedBox(height: 20),
 
-              onChanged: (value) {
-                setState(() {
-                  selectedSchool = value;
-                });
-              },
-            ),
+              // SCHOOL DROPDOWN
+              DropdownButtonFormField<String>(
+                value: selectedSchool,
 
-            const SizedBox(height: 20),
+                decoration: InputDecoration(
+                  labelText: "Select School",
+                  filled: true,
+                  fillColor: const Color(0xFF161B22),
 
-            // GENERATE BUTTON
-            SizedBox(
-              width: double.infinity,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide.none,
+                  ),
 
-              child: ElevatedButton(
-                onPressed: generateReport,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF10A37F),
+                      width: 1.5,
+                    ),
+                  ),
 
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF10A37F),
+                      width: 2,
+                    ),
+                  ),
                 ),
 
-                child: const Text(
-                  "Generate Report",
+                items: schools.map((school) {
+                  return DropdownMenuItem(value: school, child: Text(school));
+                }).toList(),
 
-                  style: TextStyle(fontSize: 18),
-                ),
+                onChanged: (value) {
+                  setState(() {
+                    selectedSchool = value;
+                  });
+                },
               ),
-            ),
 
-            const SizedBox(height: 25),
+              const SizedBox(height: 20),
 
-            // LOADING
-            if (isLoading) const Center(child: CircularProgressIndicator()),
-
-            // TOTAL REVENUE
-            if (!isLoading && reportData.isNotEmpty)
-              Container(
+              // GENERATE BUTTON
+              SizedBox(
                 width: double.infinity,
 
-                padding: const EdgeInsets.all(20),
+                child: ElevatedButton(
+                  onPressed: generateReport,
 
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF161B22),
 
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                    foregroundColor: const Color(0xFF10A37F),
 
-                child: Column(
-                  children: [
-                    const Text(
-                      "Total Revenue",
+                    elevation: 0,
 
-                      style: TextStyle(
-                        fontSize: 20,
-
-                        fontWeight: FontWeight.bold,
-                      ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
 
-                    const SizedBox(height: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                  ),
 
-                    Text(
-                      "₹$totalRevenue",
+                  child: const Text(
+                    "Generate Report",
 
-                      style: const TextStyle(
-                        fontSize: 32,
-
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                    style: TextStyle(fontSize: 18),
+                  ),
                 ),
               ),
 
-            const SizedBox(height: 25),
+              const SizedBox(height: 25),
 
-            // REPORT TABLE
-            if (!isLoading && reportData.isNotEmpty)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+              // LOADING
+              if (isLoading) const Center(child: CircularProgressIndicator()),
 
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text("Class")),
+              // TOTAL REVENUE
+              if (!isLoading && reportData.isNotEmpty)
+                Container(
+                  width: double.infinity,
 
-                    DataColumn(label: Text("Sets Sold")),
+                  padding: const EdgeInsets.all(20),
 
-                    DataColumn(label: Text("Amount")),
-                  ],
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161B22),
 
-                  rows: reportData.entries.map((entry) {
-                    final className = entry.key;
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF21262D)),
 
-                    final data = entry.value;
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 15,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
 
-                    return DataRow(
-                      cells: [
-                        DataCell(Text(className)),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "Total Revenue",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
 
-                        DataCell(Text(data["count"].toString())),
+                      const SizedBox(height: 10),
 
-                        DataCell(Text("₹${data["amount"]}")),
-                      ],
-                    );
-                  }).toList(),
+                      Text(
+                        "₹$totalRevenue",
+
+                        style: const TextStyle(
+                          color: Color(0xFF10A37F),
+                          fontSize: 32,
+
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-            const SizedBox(height: 30),
-          ],
+              const SizedBox(height: 25),
+
+              // REPORT TABLE
+              if (!isLoading && reportData.isNotEmpty)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+
+                  child: DataTable(
+                    headingTextStyle: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+
+                    dataTextStyle: const TextStyle(color: Colors.white70),
+
+                    dividerThickness: 1,
+                    columns: const [
+                      DataColumn(label: Text("Class")),
+
+                      DataColumn(label: Text("Sets Sold")),
+
+                      DataColumn(label: Text("Amount")),
+                    ],
+
+                    rows: reportData.entries.map((entry) {
+                      final className = entry.key;
+
+                      final data = entry.value;
+
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(className)),
+
+                          DataCell(Text(data["count"].toString())),
+
+                          DataCell(Text("₹${data["amount"]}")),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );

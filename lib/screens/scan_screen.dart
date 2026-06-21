@@ -263,9 +263,9 @@ class _ScanScreenState extends State<ScanScreen>
                   curve: Curves.easeInOut,
 
                   child: SizedBox(
-                    width: 260,
+                    width: 200,
 
-                    height: 260,
+                    height: 200,
 
                     child: Stack(
                       children: [
@@ -276,9 +276,9 @@ class _ScanScreenState extends State<ScanScreen>
                           left: 0,
 
                           child: Container(
-                            width: 45,
+                            width: 30,
 
-                            height: 45,
+                            height:30,
 
                             decoration: BoxDecoration(
                               border: Border(
@@ -286,14 +286,14 @@ class _ScanScreenState extends State<ScanScreen>
                                   color: scanSuccess
                                       ? Colors.greenAccent
                                       : Colors.grey,
-                                  width: 5,
+                                  width: 3,
                                 ),
 
                                 left: BorderSide(
                                   color: scanSuccess
                                       ? Colors.greenAccent
                                       : Colors.grey,
-                                  width: 5,
+                                  width: 3,
                                 ),
                               ),
                               boxShadow: [
@@ -315,9 +315,9 @@ class _ScanScreenState extends State<ScanScreen>
                           right: 0,
 
                           child: Container(
-                            width: 45,
+                            width: 30,
 
-                            height: 45,
+                            height: 30,
 
                             decoration: BoxDecoration(
                               border: Border(
@@ -325,14 +325,14 @@ class _ScanScreenState extends State<ScanScreen>
                                   color: scanSuccess
                                       ? Colors.greenAccent
                                       : Colors.grey,
-                                  width: 5,
+                                  width: 3,
                                 ),
 
                                 right: BorderSide(
                                   color: scanSuccess
                                       ? Colors.greenAccent
                                       : Colors.grey,
-                                  width: 5,
+                                  width: 3,
                                 ),
                               ),
                               boxShadow: [
@@ -354,9 +354,9 @@ class _ScanScreenState extends State<ScanScreen>
                           left: 0,
 
                           child: Container(
-                            width: 45,
+                            width: 30,
 
-                            height: 45,
+                            height: 30,
 
                             decoration: BoxDecoration(
                               border: Border(
@@ -364,14 +364,14 @@ class _ScanScreenState extends State<ScanScreen>
                                   color: scanSuccess
                                       ? Colors.greenAccent
                                       : Colors.grey,
-                                  width: 5,
+                                  width: 3,
                                 ),
 
                                 left: BorderSide(
                                   color: scanSuccess
                                       ? Colors.greenAccent
                                       : Colors.grey,
-                                  width: 5,
+                                  width: 3,
                                 ),
                               ),
                               boxShadow: [
@@ -393,9 +393,9 @@ class _ScanScreenState extends State<ScanScreen>
                           right: 0,
 
                           child: Container(
-                            width: 45,
+                            width: 30,
 
-                            height: 45,
+                            height: 30,
 
                             decoration: BoxDecoration(
                               border: Border(
@@ -403,14 +403,14 @@ class _ScanScreenState extends State<ScanScreen>
                                   color: scanSuccess
                                       ? Colors.greenAccent
                                       : Colors.grey,
-                                  width: 5,
+                                  width: 3,
                                 ),
 
                                 right: BorderSide(
                                   color: scanSuccess
                                       ? Colors.greenAccent
                                       : Colors.grey,
-                                  width: 5,
+                                  width: 3,
                                 ),
                               ),
                               boxShadow: [
@@ -432,7 +432,7 @@ class _ScanScreenState extends State<ScanScreen>
             ),
 
             Positioned(
-              bottom: 130,
+              bottom: 290,
 
               left: 35,
 
@@ -584,7 +584,7 @@ class _ScanScreenState extends State<ScanScreen>
 
             // GO TO CART BUTTON
             Positioned(
-              bottom: 30,
+              bottom: 230,
 
               left: 130,
 

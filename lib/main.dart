@@ -7,6 +7,7 @@ import 'screens/price_list_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/inventory_screen.dart';
 import 'screens/update_screen.dart';
+import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: AppTheme.darkTheme,
       debugShowCheckedModeBanner: false,
       home: updateInfo.updateAvailable
           ? UpdateScreen(updateInfo: updateInfo)
@@ -69,200 +71,86 @@ class _MainNavigationState extends State<MainNavigation> {
     super.dispose();
   }
 
+  Widget _navItem(IconData icon, int index) {
+    final selected = currentIndex == index;
+
+    return GestureDetector(
+      onTap: () {
+        pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+        );
+
+        setState(() {
+          currentIndex = index;
+        });
+      },
+
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+
+        padding: const EdgeInsets.all(12),
+
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.primary.withOpacity(0.15)
+              : Colors.transparent,
+
+          borderRadius: BorderRadius.circular(16),
+        ),
+
+        child: Icon(
+          icon,
+          size: 28,
+          color: selected ? AppTheme.primary : AppTheme.textSecondary,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true,
+      backgroundColor: AppTheme.background,
 
-      appBar: AppBar(
-        title: const Text(""),
-
-        centerTitle: true,
-
-        backgroundColor: Colors.transparent,
-
-        elevation: 0,
-      ),
-
-      backgroundColor: Colors.black,
-
-      body: PageView(
-        controller: pageController,
-
-        onPageChanged: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
-
-        children: screens,
-      ),
-
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-
-        backgroundColor: Colors.transparent,
-
-        elevation: 0,
-
-        type: BottomNavigationBarType.fixed,
-
-        showSelectedLabels: false,
-
-        showUnselectedLabels: false,
-
-        selectedItemColor: Colors.white,
-
-        unselectedItemColor: Colors.white.withOpacity(0.28),
-
-        onTap: (index) {
-          pageController.animateToPage(
-            index,
-
-            duration: const Duration(milliseconds: 250),
-
-            curve: Curves.easeInOut,
-          );
-
-          setState(() {
-            currentIndex = index;
-          });
-        },
-
-        items: [
-          // HOME
-          BottomNavigationBarItem(
-            icon: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-
-              padding: const EdgeInsets.all(6),
-
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-
-                boxShadow: currentIndex == 0
-                    ? [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.7),
-
-                          blurRadius: 12,
-                        ),
-                      ]
-                    : [],
-              ),
-
-              child: const Icon(Icons.home, size: 28),
-            ),
-
-            label: "",
+      body: Stack(
+        children: [
+          PageView(
+            controller: pageController,
+            onPageChanged: (index) {
+              setState(() {
+                currentIndex = index;
+              });
+            },
+            children: screens,
           ),
 
-          // PRICE LIST
-          BottomNavigationBarItem(
-            icon: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-
-              padding: const EdgeInsets.all(6),
-
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-
-                boxShadow: currentIndex == 1
-                    ? [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.7),
-
-                          blurRadius: 12,
-                        ),
-                      ]
-                    : [],
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 20,
+            child: SafeArea(
+              top: false,
+              child: Container(
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppTheme.card.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _navItem(Icons.home, 0),
+                    _navItem(Icons.menu_book, 1),
+                    _navItem(Icons.qr_code_scanner, 2),
+                    _navItem(Icons.bar_chart, 3),
+                    _navItem(Icons.inventory, 4),
+                  ],
+                ),
               ),
-
-              child: const Icon(Icons.menu_book, size: 28),
             ),
-
-            label: "",
-          ),
-
-          // SCAN
-          BottomNavigationBarItem(
-            icon: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-
-              padding: const EdgeInsets.all(6),
-
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-
-                boxShadow: currentIndex == 2
-                    ? [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.7),
-
-                          blurRadius: 12,
-                        ),
-                      ]
-                    : [],
-              ),
-
-              child: const Icon(Icons.qr_code_scanner, size: 30),
-            ),
-
-            label: "",
-          ),
-
-          // REPORTS
-          BottomNavigationBarItem(
-            icon: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-
-              padding: const EdgeInsets.all(6),
-
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-
-                boxShadow: currentIndex == 3
-                    ? [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.7),
-
-                          blurRadius: 12,
-                        ),
-                      ]
-                    : [],
-              ),
-
-              child: const Icon(Icons.bar_chart, size: 28),
-            ),
-
-            label: "",
-          ),
-
-          // INVENTORY
-          BottomNavigationBarItem(
-            icon: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-
-              padding: const EdgeInsets.all(6),
-
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-
-                boxShadow: currentIndex == 4
-                    ? [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.7),
-
-                          blurRadius: 12,
-                        ),
-                      ]
-                    : [],
-              ),
-
-              child: const Icon(Icons.inventory, size: 28),
-            ),
-
-            label: "",
           ),
         ],
       ),
