@@ -15,8 +15,11 @@ void main() async {
 
   final updateInfo = await UpdateService.checkForUpdate();
   print("Update Available: ${updateInfo.updateAvailable}");
+  print("Current Version: ${updateInfo.currentVersion}");
+  print("Latest Version: ${updateInfo.latestVersion}");
+  print("Update Available: ${updateInfo.updateAvailable}");
 
-  runApp(MyApp(updateInfo: updateInfo,));
+  runApp(MyApp(updateInfo: updateInfo));
 }
 
 class MyApp extends StatelessWidget {
@@ -28,7 +31,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: updateInfo.updateAvailable ?  UpdateScreen(updateInfo: updateInfo) : const MainNavigation(),
+      home: updateInfo.updateAvailable
+          ? UpdateScreen(updateInfo: updateInfo)
+          : const MainNavigation(),
     );
   }
 }
