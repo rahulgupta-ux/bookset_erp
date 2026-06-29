@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'qr_print_screen.dart';
-import 'bulk_qr_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -20,8 +17,10 @@ class _InventoryScreenState extends State<InventoryScreen>
   List<String> schoolList = [];
   List<String> classList = [];
   bool isLoading = false;
-  String generatedQr = "";
-  List<String> generatedQrs = [];
+
+  String currentBatchId = "";
+  String currentInventoryId = "";
+  //List<String> generatedQrs = [];
 
   @override
   bool get wantKeepAlive => true;
@@ -32,16 +31,32 @@ class _InventoryScreenState extends State<InventoryScreen>
   }
 
   Future<void> loadSchools() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection("products")
-        .get();
-    final schools = snapshot.docs
-        .map((doc) => doc["school"].toString())
-        .toSet()
-        .toList();
-    setState(() {
-      schoolList = schools;
-    });
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection("products")
+          .get();
+
+      print("========== PRODUCTS ==========");
+      print(snapshot.docs.length);
+
+      for (var doc in snapshot.docs) {
+        print(doc.id);
+        print(doc.data());
+      }
+
+      final schools = snapshot.docs
+          .map((doc) => doc["school"].toString())
+          .toSet()
+          .toList();
+
+      print("Schools = $schools");
+
+      setState(() {
+        schoolList = schools;
+      });
+    } catch (e) {
+      print("ERROR = $e");
+    }
   }
 
   Future<void> loadClasses(String school) async {
@@ -78,7 +93,8 @@ class _InventoryScreenState extends State<InventoryScreen>
     });
 
     try {
-      // FIND PRODUCT
+      // INVENTORY / PRODUCT ID
+      // FIND PRODUCT FROM FIREBASE
       final productSnapshot = await FirebaseFirestore.instance
           .collection("products")
           .where("school", isEqualTo: school)
@@ -98,66 +114,107 @@ class _InventoryScreenState extends State<InventoryScreen>
         return;
       }
 
-      final product = productSnapshot.docs.first;
+      final productDoc = productSnapshot.docs.first;
+
+      final product = productDoc.data();
+
+      final inventoryId = productDoc.id;
 
       final price = product["price"];
 
+      final schoolCode = product["schoolCode"];
+
       // PARENT DOC ID
-      final inventoryId =
-          "${school.replaceAll(" ", "")}"
-          "_"
-          "${className.replaceAll(" ", "")}";
 
       // PARENT DOCUMENT
       final inventoryDoc = FirebaseFirestore.instance
           .collection("inventory")
           .doc(inventoryId);
+      final batchId = "BATCH_${DateTime.now().millisecondsSinceEpoch}";
 
+      setState(() {
+        currentBatchId = batchId;
+        currentInventoryId = inventoryId;
+      });
+
+      final batchDoc = inventoryDoc.collection("batches").doc(batchId);
+      final existingDoc = await inventoryDoc.get();
+
+      int oldAvailableStock = 0;
+      int oldInStock = 0;
+      int nextQrNumber = 1;
+
+      if (existingDoc.exists) {
+        final data = existingDoc.data()!;
+
+        oldAvailableStock = data["availableStock"] ?? 0;
+
+        oldInStock = data["inStock"] ?? 0;
+
+        nextQrNumber = data["nextQrNumber"] ?? 1;
+      }
       // CREATE OR UPDATE PARENT
       await inventoryDoc.set({
         "school": school,
 
         "className": className,
+        "schoolCode": schoolCode,
+
+        "nextQrNumber": nextQrNumber,
 
         "price": price,
+        "inStock": oldInStock,
+        "availableStock": oldAvailableStock + stock,
 
         "updatedAt": Timestamp.now(),
       }, SetOptions(merge: true));
 
-      generatedQrs.clear();
+      await batchDoc.set({
+        "batchId": batchId,
+        "createdAt": Timestamp.now(),
+        "totalQr": stock,
+        "pdfUrl": "",
+        "price": price,
+      });
 
       // CREATE QR DOCS
-      for (int i = 1; i <= stock; i++) {
-        final qrId =
-            "${inventoryId}"
-            "_"
-            "${DateTime.now().millisecondsSinceEpoch}"
-            "_$i";
+      for (int i = 0; i < stock; i++) {
+        final serial = (nextQrNumber + i).toString().padLeft(6, '0');
 
-        generatedQrs.add(qrId);
+        final qrId = "$schoolCode$className-$serial";
 
-        if (i == 1) {
-          generatedQr = qrId;
-        }
+        await batchDoc.collection("qrs").doc(qrId).set({
+          "qrId": qrId,
+          "batchId": batchId,
+          "status": "godown",
+          "sold": false,
+          "createdAt": Timestamp.now(),
+        });
 
         await inventoryDoc.collection("qrs").doc(qrId).set({
           "qrId": qrId,
-
+          "batchId": batchId,
+          "school": school,
+          "schoolCode": schoolCode,
+          "className": className,
+          "price": price,
+          "status": "godown",
           "sold": false,
-
+          "invoiceId": "",
           "createdAt": Timestamp.now(),
         });
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Added $stock Book Sets")));
+      await inventoryDoc.update({"nextQrNumber": nextQrNumber + stock});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("$stock book sets added to inventory.")),
+      );
 
       stockController.clear();
 
       setState(() {
         selectedClass = null;
-
         isLoading = false;
       });
     } catch (e) {
@@ -175,6 +232,62 @@ class _InventoryScreenState extends State<InventoryScreen>
     await Future.delayed(const Duration(seconds: 1));
 
     setState(() {});
+  }
+
+  Future<void> transferToShop(
+    String inventoryId,
+    int availableStock,
+    int inStock,
+  ) async {
+    final controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text("Transfer To Shop"),
+
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(hintText: "Enter Quantity"),
+          ),
+
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Cancel"),
+            ),
+
+            ElevatedButton(
+              onPressed: () async {
+                final qty = int.tryParse(controller.text) ?? 0;
+
+                if (qty <= 0 || qty > availableStock) {
+                  return;
+                }
+
+                await FirebaseFirestore.instance
+                    .collection("inventory")
+                    .doc(inventoryId)
+                    .update({
+                      "availableStock": availableStock - qty,
+
+                      "inStock": inStock + qty,
+                    });
+
+                Navigator.pop(context);
+
+                setState(() {});
+              },
+              child: const Text("Transfer"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -305,64 +418,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                 ),
               ),
               const SizedBox(height: 30),
-              if (generatedQr.isNotEmpty)
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black12, blurRadius: 10),
-                        ],
-                      ),
-                      child: QrImageView(
-                        data: generatedQr,
-                        size: 220,
-                        backgroundColor: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    Text(
-                      generatedQr,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => QrPrintScreen(qrId: generatedQr),
-                            ),
-                          );
-                        },
-                        child: const Text("Open Print Preview"),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  BulkQrScreen(qrList: generatedQrs),
-                            ),
-                          );
-                        },
-                        child: const Text("Open Bulk QR Sheet"),
-                      ),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 35),
+
               TextField(
                 controller: searchController,
                 onChanged: (value) {
@@ -422,12 +478,9 @@ class _InventoryScreenState extends State<InventoryScreen>
 
                   return RefreshIndicator(
                     onRefresh: refreshInventory,
-
                     child: ListView.builder(
                       shrinkWrap: true,
-
                       physics: const NeverScrollableScrollPhysics(),
-
                       itemCount: docs.length,
 
                       itemBuilder: (context, index) {
@@ -439,39 +492,32 @@ class _InventoryScreenState extends State<InventoryScreen>
 
                         final price = item["price"];
 
-                        final inventoryId = item.id.toLowerCase();
+                        final inventoryId = item.id;
 
-                        if (!inventoryId.contains(searchText)) {
+                        final inStock = item["inStock"] ?? 0;
+
+                        final availableStock = item["availableStock"] ?? 0;
+
+                        final searchTarget = "$school $className".toLowerCase();
+
+                        if (!searchTarget.contains(searchText)) {
                           return const SizedBox();
                         }
 
-                        return FutureBuilder(
-                          future: item.reference
-                              .collection("qrs")
-                              .where("sold", isEqualTo: false)
-                              .get(),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 15),
 
-                          builder: (context, qrSnapshot) {
-                            int availableStock = 0;
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF161B22),
 
-                            if (qrSnapshot.hasData) {
-                              availableStock = qrSnapshot.data!.docs.length;
-                            }
+                            borderRadius: BorderRadius.circular(20),
 
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 15),
+                            border: Border.all(color: const Color(0xFF21262D)),
+                          ),
 
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF161B22),
-
-                                borderRadius: BorderRadius.circular(20),
-
-                                border: Border.all(
-                                  color: const Color(0xFF21262D),
-                                ),
-                              ),
-
-                              child: ListTile(
+                          child: Column(
+                            children: [
+                              ListTile(
                                 leading: const CircleAvatar(
                                   backgroundColor: Color(0xFF10A37F),
 
@@ -486,12 +532,64 @@ class _InventoryScreenState extends State<InventoryScreen>
                                   ),
                                 ),
 
-                                subtitle: Text(
-                                  "$className\nAvailable Stock: $availableStock",
-                                  style: const TextStyle(color: Colors.white70),
-                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
 
-                                isThreeLine: true,
+                                  children: [
+                                    const SizedBox(height: 6),
+
+                                    Text(
+                                      className,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 6),
+
+                                    Text(
+                                      "🏪 Shop Stock : $inStock",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+
+                                    Text(
+                                      "📦 Godown Stock : $availableStock",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+
+                                    if (inStock < 5)
+                                      Container(
+                                        margin: const EdgeInsets.only(top: 8),
+
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.withOpacity(
+                                            0.15,
+                                          ),
+
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+
+                                        child: const Text(
+                                          "⚠ Refill Required",
+                                          style: TextStyle(
+                                            color: Colors.orange,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
 
                                 trailing: Text(
                                   "₹$price",
@@ -502,8 +600,44 @@ class _InventoryScreenState extends State<InventoryScreen>
                                   ),
                                 ),
                               ),
-                            );
-                          },
+
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 12,
+                                  right: 12,
+                                  bottom: 12,
+                                ),
+
+                                child: SizedBox(
+                                  width: double.infinity,
+
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      transferToShop(
+                                        inventoryId,
+                                        availableStock,
+                                        inStock,
+                                      );
+                                    },
+
+                                    icon: const Icon(Icons.swap_horiz),
+
+                                    label: const Text("Transfer To Shop"),
+
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF10A37F),
+
+                                      foregroundColor: Colors.black,
+
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       },
                     ),

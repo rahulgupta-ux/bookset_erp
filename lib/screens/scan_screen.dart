@@ -54,17 +54,11 @@ class _ScanScreenState extends State<ScanScreen>
     try {
       final qrQuery = await FirebaseFirestore.instance
           .collectionGroup("qrs")
+          .where("qrId", isEqualTo: qrId)
+          .limit(1)
           .get();
 
-      DocumentSnapshot? qrDoc;
-
-      for (var doc in qrQuery.docs) {
-        if (doc.id == qrId) {
-          qrDoc = doc;
-
-          break;
-        }
-      }
+      final qrDoc = qrQuery.docs.firstOrNull;
 
       if (qrDoc == null) {
         ScaffoldMessenger.of(
@@ -90,21 +84,28 @@ class _ScanScreenState extends State<ScanScreen>
         return;
       }
 
-      final parentDoc = await qrDoc.reference.parent.parent!.get();
+      final batchDoc = await qrDoc.reference.parent.parent!.get();
 
-      final parentData = parentDoc.data() as Map<String, dynamic>;
+      final inventoryDoc = await batchDoc.reference.parent.parent!.get();
+
+      final parentData = inventoryDoc.data() as Map<String, dynamic>;
+      print("Inventory Data: $parentData");
+
+      final school = parentData["school"]?.toString();
+
+      final className = parentData["className"]?.toString();
 
       final price = parentData["price"] ?? 0;
 
+      print("School: $school");
+      print("Class: $className");
+      print("Price: $price");
+
       final book = BookSet(
-        school: parentData["school"],
-
-        className: parentData["className"],
-
+        school: school ?? "Unknown School",
+        className: className ?? "Unknown Class",
         qrId: qrId,
-
         price: price,
-
         stock: 1,
       );
 
@@ -278,7 +279,7 @@ class _ScanScreenState extends State<ScanScreen>
                           child: Container(
                             width: 30,
 
-                            height:30,
+                            height: 30,
 
                             decoration: BoxDecoration(
                               border: Border(

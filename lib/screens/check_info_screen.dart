@@ -25,26 +25,34 @@ class _CheckInfoScreenState extends State<CheckInfoScreen> {
 
     setState(() {
       isLoading = true;
-
       foundBook = null;
-
-      isSold = false;
     });
 
-    final inventorySnapshot = await FirebaseFirestore.instance
-        .collection("inventory")
-        .doc(qrId)
-        .get();
+    try {
+      final qrQuery = await FirebaseFirestore.instance
+          .collectionGroup("qrs")
+          .where("qrId", isEqualTo: qrId)
+          .limit(1)
+          .get();
 
-    final soldSnapshot = await FirebaseFirestore.instance
-        .collection("sold_qrs")
-        .doc(qrId)
-        .get();
+      if (qrQuery.docs.isNotEmpty) {
+        final qrDoc = qrQuery.docs.first;
 
-    if (inventorySnapshot.exists) {
-      foundBook = inventorySnapshot.data();
+        final qrData = qrDoc.data();
 
-      isSold = soldSnapshot.exists;
+        final inventoryDoc = await qrDoc.reference.parent.parent!.get();
+        debugPrint("QR Path: ${qrDoc.reference.path}");
+        debugPrint("Parent Path: ${qrDoc.reference.parent.parent!.path}");
+        debugPrint("Inventory Data: ${inventoryDoc.data()}");
+
+        final inventoryData = inventoryDoc.data() ?? {};
+
+        foundBook = {...inventoryData, ...qrData};
+
+        isSold = foundBook!["sold"] ?? false;
+      }
+    } catch (e) {
+      debugPrint(e.toString());
     }
 
     setState(() {
@@ -56,245 +64,265 @@ class _CheckInfoScreenState extends State<CheckInfoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
 
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
 
-            children: [
-              const Text(
-                "Check Book Set Info",
+              children: [
+                const Text(
+                  "Check Book Set Info",
 
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 20),
-
-              Container(
-                height: 300,
-
-                width: double.infinity,
-
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-
-                  color: Colors.black12,
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
 
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
+                const SizedBox(height: 20),
 
-                  child: MobileScanner(
-                    onDetect: (capture) async {
-                      if (isScanned) return;
+                Container(
+                  height: 300,
 
-                      final List<Barcode> barcodes = capture.barcodes;
+                  width: double.infinity,
 
-                      for (final barcode in barcodes) {
-                        final String code = barcode.rawValue ?? "";
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
 
-                        if (code.isEmpty) return;
+                    color: Colors.black12,
+                  ),
 
-                        isScanned = true;
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
 
-                        qrController.text = code;
+                    child: MobileScanner(
+                      onDetect: (capture) async {
+                        if (isScanned) return;
 
-                        await searchBook(code);
+                        final List<Barcode> barcodes = capture.barcodes;
 
-                        isScanned = false;
+                        for (final barcode in barcodes) {
+                          final String code = barcode.rawValue ?? "";
 
-                        break;
-                      }
-                    },
+                          if (code.isEmpty) return;
+
+                          isScanned = true;
+
+                          qrController.text = code;
+
+                          await searchBook(code);
+
+                          isScanned = false;
+
+                          break;
+                        }
+                      },
+                    ),
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 30),
+                const SizedBox(height: 30),
 
-              const Row(
-                children: [
-                  Expanded(child: Divider(thickness: 1)),
+                const Row(
+                  children: [
+                    Expanded(child: Divider(thickness: 1)),
 
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
 
-                    child: Text(
-                      "OR",
+                      child: Text(
+                        "OR",
+
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    Expanded(child: Divider(thickness: 1)),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+
+                const Text(
+                  "Enter QR ID Manually",
+
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+
+                const SizedBox(height: 15),
+
+                TextField(
+                  controller: qrController,
+
+                  decoration: InputDecoration(
+                    hintText: "Enter QR ID",
+
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+
+                    prefixIcon: const Icon(Icons.qr_code),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+
+                  child: ElevatedButton(
+                    onPressed: () {
+                      searchBook(qrController.text.trim());
+                    },
+
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                    ),
+
+                    child: const Text(
+                      "Check Info",
+                      style: TextStyle(fontSize: 20),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 30),
+
+                if (isLoading) const Center(child: CircularProgressIndicator()),
+
+                if (!isLoading && foundBook == null)
+                  Container(
+                    width: double.infinity,
+
+                    padding: const EdgeInsets.all(20),
+
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+
+                    child: const Text(
+                      "Book Set Not Found",
 
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 22,
+
                         fontWeight: FontWeight.bold,
+
+                        color: Colors.red,
                       ),
                     ),
                   ),
 
-                  Expanded(child: Divider(thickness: 1)),
-                ],
-              ),
-
-              const SizedBox(height: 30),
-
-              const Text(
-                "Enter QR ID Manually",
-
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 15),
-
-              TextField(
-                controller: qrController,
-
-                decoration: InputDecoration(
-                  hintText: "Enter QR ID",
-
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-
-                  prefixIcon: const Icon(Icons.qr_code),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-
-                child: ElevatedButton(
-                  onPressed: () {
-                    searchBook(qrController.text.trim());
-                  },
-
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                  ),
-
-                  child: const Text(
-                    "Check Info",
-                    style: TextStyle(fontSize: 20),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              if (isLoading) const Center(child: CircularProgressIndicator()),
-
-              if (!isLoading && foundBook == null)
-                Container(
-                  width: double.infinity,
-
-                  padding: const EdgeInsets.all(20),
-
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-
-                  child: const Text(
-                    "Book Set Not Found",
-
-                    style: TextStyle(
-                      fontSize: 22,
-
-                      fontWeight: FontWeight.bold,
-
-                      color: Colors.red,
+                if (!isLoading && foundBook != null)
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ),
-                ),
 
-              if (!isLoading && foundBook != null)
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
 
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          if (foundBook!.containsKey("imageUrl") &&
+                              foundBook!["imageUrl"] != "")
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
 
-                    child: Column(
-                      children: [
-                        if (foundBook!.containsKey("imageUrl") &&
-                            foundBook!["imageUrl"] != "")
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
+                              child: Image.network(
+                                foundBook!["imageUrl"],
 
-                            child: Image.network(
-                              foundBook!["imageUrl"],
+                                height: 220,
 
-                              height: 220,
+                                width: double.infinity,
 
-                              width: double.infinity,
-
-                              fit: BoxFit.cover,
+                                fit: BoxFit.cover,
+                              ),
                             ),
-                          ),
 
-                        const SizedBox(height: 20),
+                          const SizedBox(height: 20),
 
-                        Text(
-                          foundBook!["school"],
+                          Text(
+                            foundBook?["school"]?.toString() ??
+                                "Unknown School",
 
-                          style: const TextStyle(
-                            fontSize: 28,
-
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        Text(foundBook!["className"]),
-
-                        const SizedBox(height: 10),
-
-                        Text("Price: ₹${foundBook!["price"]}"),
-
-                        const SizedBox(height: 10),
-
-                        Text("Stock: ${foundBook!["stock"]}"),
-
-                        const SizedBox(height: 20),
-
-                        Container(
-                          width: double.infinity,
-
-                          padding: const EdgeInsets.all(15),
-
-                          decoration: BoxDecoration(
-                            color: isSold
-                                ? Colors.red.shade50
-                                : Colors.green.shade50,
-
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-
-                          child: Text(
-                            isSold
-                                ? "THIS BOOK SET IS SOLD"
-                                : "AVAILABLE FOR SALE",
-
-                            textAlign: TextAlign.center,
-
-                            style: TextStyle(
-                              fontSize: 18,
+                            style: const TextStyle(
+                              fontSize: 28,
 
                               fontWeight: FontWeight.bold,
-
-                              color: isSold ? Colors.red : Colors.green,
                             ),
                           ),
-                        ),
-                      ],
+
+                          const SizedBox(height: 10),
+
+                          Text(
+                            foundBook?["className"]?.toString() ??
+                                "Unknown Class",
+                          ),
+                          const SizedBox(height: 10),
+
+                          Text(
+                            "QR ID : ${foundBook?["qrId"]?.toString() ?? "-"}",
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          Text("Price : ₹${foundBook!["price"] ?? 0}"),
+
+                          const SizedBox(height: 10),
+
+                          Text(
+                            "Status : ${foundBook?["status"]?.toString() ?? "Unknown"}",
+                          ),
+
+                          const SizedBox(height: 20),
+                          if (isSold) ...[
+                            const SizedBox(height: 10),
+
+                            Text(
+                              "Invoice : ${foundBook?["invoiceId"]?.toString() ?? "-"}",
+                            ),
+                          ],
+
+                          Container(
+                            width: double.infinity,
+
+                            padding: const EdgeInsets.all(15),
+
+                            decoration: BoxDecoration(
+                              color: isSold
+                                  ? Colors.red.shade50
+                                  : Colors.green.shade50,
+
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+
+                            child: Text(
+                              isSold
+                                  ? "THIS BOOK SET IS SOLD"
+                                  : "AVAILABLE FOR SALE",
+
+                              textAlign: TextAlign.center,
+
+                              style: TextStyle(
+                                fontSize: 18,
+
+                                fontWeight: FontWeight.bold,
+
+                                color: isSold ? Colors.red : Colors.green,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

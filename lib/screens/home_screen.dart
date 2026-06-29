@@ -65,7 +65,9 @@ class _HomeScreenState extends State<HomeScreen>
       for (var doc in salesSnapshot.docs) {
         final data = doc.data();
 
-        sales += (data["amount"] ?? 0).toDouble();
+        sales +=
+            ((data["finalTotal"] ?? 0) as num)
+                .toDouble();
 
         final books = data["books"] as List?;
 
@@ -85,10 +87,13 @@ class _HomeScreenState extends State<HomeScreen>
       for (var doc in inventorySnapshot.docs) {
         final data = doc.data();
 
-        final sold = data.containsKey("sold") ? data["sold"] : false;
-        if (!sold) {
-          inventory++;
-        }
+        final shopStock =
+        (data["inStock"] ?? 0) as int;
+
+        final godownStock =
+        (data["availableStock"] ?? 0) as int;
+
+        inventory += shopStock + godownStock;
       }
 
       setState(() {
@@ -276,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ? "School Sale"
                         : "Retail Sale",
 
-                    amount: "₹${sale["amount"]}",
+                    amount: "₹${sale["finalTotal"]}",
                   );
                 }),
 

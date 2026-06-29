@@ -84,21 +84,27 @@ class _ReportsScreenState extends State<ReportsScreen>
 
         final className = data["className"] ?? "Unknown";
 
-        final soldQrSnapshot = await inventoryDoc.reference
-            .collection("qrs")
-            .where("sold", isEqualTo: true)
-            .get();
-
         int soldCount = 0;
 
         int soldAmount = 0;
 
-        for (var qrDoc in soldQrSnapshot.docs) {
-          final qrData = qrDoc.data();
+        final batchesSnapshot = await inventoryDoc.reference
+            .collection("batches")
+            .get();
 
-          soldCount++;
+        for (var batchDoc in batchesSnapshot.docs) {
+          final soldQrSnapshot = await batchDoc.reference
+              .collection("qrs")
+              .where("sold", isEqualTo: true)
+              .get();
 
-          soldAmount += (qrData["soldPrice"] ?? 0) as int;
+          for (var qrDoc in soldQrSnapshot.docs) {
+            final qrData = qrDoc.data();
+
+            soldCount++;
+
+            soldAmount += ((qrData["soldPrice"] ?? 0) as num).toInt();
+          }
         }
 
         tempReport[className] = {"count": soldCount, "amount": soldAmount};

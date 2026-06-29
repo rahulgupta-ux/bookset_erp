@@ -78,26 +78,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Mark inventory sold
       final soldPricePerBook = widget.finalTotal ~/ widget.soldBooks.length;
       for (var book in widget.soldBooks) {
-        await FirebaseFirestore.instance
-            .collection("inventory")
-            .doc(
-              "${book.school.replaceAll(" ", "")}"
-              "_"
-              "${book.className.replaceAll(" ", "")}",
-            )
-            .collection("qrs")
-            .doc(book.qrId)
-            .update({
-              "sold": true,
+        final qrQuery = await FirebaseFirestore.instance
+            .collectionGroup("qrs")
+            .where("qrId", isEqualTo: book.qrId)
+            .limit(1)
+            .get();
 
-              "soldPrice": soldPricePerBook,
+        if (qrQuery.docs.isEmpty) {
+          continue;
+        }
 
-              "originalPrice": book.price,
-
-              "invoiceId": widget.invoiceId,
-
-              "soldAt": Timestamp.now(),
-            });
+        await qrQuery.docs.first.reference.update({
+          "sold": true,
+          "soldPrice": soldPricePerBook,
+          "originalPrice": book.price,
+          "invoiceId": widget.invoiceId,
+          "soldAt": Timestamp.now(),
+          "status": "sold",
+        });
       }
 
       if (!context.mounted) {

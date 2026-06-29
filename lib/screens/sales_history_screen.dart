@@ -180,6 +180,9 @@ class SalesHistoryScreen extends StatelessWidget {
 
                                             transaction.update(inventoryRef, {
                                               "stock": currentStock + 1,
+                                              "inStock": FieldValue.increment(
+                                                -1,
+                                              ),
                                             });
                                           });
                                     }

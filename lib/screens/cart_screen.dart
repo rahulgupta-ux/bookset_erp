@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../core/theme/app_theme.dart';
 import '../models/book_set.dart';
 import 'checkout_screen.dart';
 
@@ -34,7 +34,13 @@ class _CartScreenState extends State<CartScreen> {
     int finalTotal = total - discount + addValue;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Cart")),
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: const Text("Cart"),
+        backgroundColor: AppTheme.background,
+        foregroundColor: AppTheme.textPrimary,
+        elevation: 0,
+      ),
 
       body: SingleChildScrollView(
         child: Padding(
@@ -53,13 +59,29 @@ class _CartScreenState extends State<CartScreen> {
                 itemBuilder: (context, index) {
                   final item = widget.cartItems[index];
 
-                  return Card(
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+
+                    decoration: BoxDecoration(
+                      color: AppTheme.card,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppTheme.border),
+                    ),
+
                     child: ListTile(
                       leading: const CircleAvatar(child: Icon(Icons.menu_book)),
 
-                      title: Text("${item.school} ${item.className}"),
-
-                      subtitle: Text(item.qrId),
+                      title: Text(
+                        "${item.school} ${item.className}",
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        item.qrId,
+                        style: const TextStyle(color: AppTheme.textSecondary),
+                      ),
 
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -68,7 +90,10 @@ class _CartScreenState extends State<CartScreen> {
                           Text(
                             "₹${item.price}",
 
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primary,
+                            ),
                           ),
 
                           IconButton(
@@ -96,7 +121,8 @@ class _CartScreenState extends State<CartScreen> {
                 padding: const EdgeInsets.all(20),
 
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
+                  color: AppTheme.card,
+                  border: Border.all(color: AppTheme.border),
 
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -114,18 +140,27 @@ class _CartScreenState extends State<CartScreen> {
 
                           style: TextStyle(
                             fontSize: 22,
-
+                            color: AppTheme.textPrimary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
 
                         const SizedBox(height: 8),
 
-                        Text("Books: ₹$total"),
+                        Text(
+                          "Books: ₹$total",
+                          style: const TextStyle(color: AppTheme.textSecondary),
+                        ),
 
-                        Text("Discount: ₹$discount"),
+                        Text(
+                          "Discount: ₹$discount",
+                          style: const TextStyle(color: AppTheme.textSecondary),
+                        ),
 
-                        Text("Extra Value: ₹$addValue"),
+                        Text(
+                          "Extra Value: ₹$addValue",
+                          style: const TextStyle(color: AppTheme.textSecondary),
+                        ),
                       ],
                     ),
 
@@ -133,8 +168,8 @@ class _CartScreenState extends State<CartScreen> {
                       "₹$finalTotal",
 
                       style: const TextStyle(
-                        fontSize: 28,
-
+                        fontSize: 30,
+                        color: AppTheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -150,6 +185,8 @@ class _CartScreenState extends State<CartScreen> {
 
                 keyboardType: TextInputType.number,
 
+                style: const TextStyle(color: AppTheme.textPrimary),
+
                 onChanged: (_) {
                   setState(() {});
                 },
@@ -157,14 +194,35 @@ class _CartScreenState extends State<CartScreen> {
                 decoration: InputDecoration(
                   labelText: "Discount",
 
-                  prefixIcon: const Icon(Icons.discount),
+                  labelStyle: const TextStyle(color: AppTheme.textSecondary),
+
+                  prefixIcon: const Icon(
+                    Icons.add_circle_outline,
+                    color: AppTheme.primary,
+                  ),
+
+                  filled: true,
+
+                  fillColor: AppTheme.card,
 
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
+
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: AppTheme.border),
+                  ),
+
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(
+                      color: AppTheme.primary,
+                      width: 2,
+                    ),
+                  ),
                 ),
               ),
-
               const SizedBox(height: 15),
 
               // EXTRA VALUE
@@ -173,17 +231,41 @@ class _CartScreenState extends State<CartScreen> {
 
                 keyboardType: TextInputType.number,
 
+                style: const TextStyle(color: AppTheme.textPrimary),
+
                 onChanged: (_) {
                   setState(() {});
                 },
 
                 decoration: InputDecoration(
-                  labelText: "Add Value (Stationery)",
+                  labelText: "Add Value (Extra Charges)",
 
-                  prefixIcon: const Icon(Icons.add_box),
+                  labelStyle: const TextStyle(color: AppTheme.textSecondary),
+
+                  prefixIcon: const Icon(
+                    Icons.discount,
+                    color: AppTheme.primary,
+                  ),
+
+                  filled: true,
+
+                  fillColor: AppTheme.card,
 
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
+                  ),
+
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: AppTheme.border),
+                  ),
+
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(
+                      color: AppTheme.primary,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -194,13 +276,18 @@ class _CartScreenState extends State<CartScreen> {
               SwitchListTile(
                 value: soldToSchool,
 
+                activeColor: AppTheme.primary,
+
                 onChanged: (value) {
                   setState(() {
                     soldToSchool = value;
                   });
                 },
 
-                title: const Text("Sold To School"),
+                title: const Text(
+                  "Sold To School",
+                  style: TextStyle(color: AppTheme.textPrimary),
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -241,6 +328,8 @@ class _CartScreenState extends State<CartScreen> {
                   },
 
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 18),
                   ),
 
