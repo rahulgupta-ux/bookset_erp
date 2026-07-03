@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:vibration/vibration.dart';
 import 'dart:ui';
+import 'dart:async';
 import '../models/book_set.dart';
 import 'cart_screen.dart';
+import 'admin_panel_screen.dart';
 // import '../services/update_service.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -32,8 +34,13 @@ class _ScanScreenState extends State<ScanScreen>
   bool animateBox = false;
   bool scanSuccess = false;
   bool cartBounce = false;
-  bool showManualSubmit = false;
+  String statusMessage = "";
 
+  Color statusColor = Colors.green;
+
+  bool showStatus = false;
+  bool showManualSubmit = false;
+  Timer? adminTimer;
   final TextEditingController manualQrController = TextEditingController();
 
   final Set<String> scannedQrsInCart = {};
@@ -42,9 +49,7 @@ class _ScanScreenState extends State<ScanScreen>
     if (isScanning) return;
 
     if (scannedQrsInCart.contains(qrId)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Already Added")));
+      await showStatusCard("Already Added", Colors.blue);
 
       return;
     }
@@ -61,9 +66,7 @@ class _ScanScreenState extends State<ScanScreen>
       final qrDoc = qrQuery.docs.firstOrNull;
 
       if (qrDoc == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("QR Not Found")));
+        await showStatusCard("QR Not Found", Colors.red);
 
         isScanning = false;
 
@@ -75,9 +78,7 @@ class _ScanScreenState extends State<ScanScreen>
       final sold = (qrData["sold"] ?? false) as bool;
 
       if (sold) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Already Sold")));
+        await showStatusCard("Already Sold", Colors.orange);
 
         isScanning = false;
 
@@ -107,6 +108,7 @@ class _ScanScreenState extends State<ScanScreen>
         qrId: qrId,
         price: price,
         stock: 1,
+        inventoryId: inventoryDoc.id,
       );
 
       scannedQrsInCart.add(qrId);
@@ -125,9 +127,7 @@ class _ScanScreenState extends State<ScanScreen>
       triggerScanSuccess();
       triggerCartBounce();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("${book.className} Added")));
+      await showStatusCard("${book.className} Added", Colors.green);
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -137,6 +137,24 @@ class _ScanScreenState extends State<ScanScreen>
     await Future.delayed(const Duration(milliseconds: 800));
 
     isScanning = false;
+  }
+
+  Future<void> showStatusCard(String message, Color color) async {
+    if (!mounted) return;
+
+    setState(() {
+      statusMessage = message;
+      statusColor = color;
+      showStatus = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 1000));
+
+    if (!mounted) return;
+
+    setState(() {
+      showStatus = false;
+    });
   }
 
   Future<void> triggerScanSuccess() async {
@@ -172,7 +190,7 @@ class _ScanScreenState extends State<ScanScreen>
     scannerController.dispose();
 
     player.dispose();
-
+    adminTimer?.cancel();
     super.dispose();
     manualQrController.dispose();
   }
@@ -247,7 +265,74 @@ class _ScanScreenState extends State<ScanScreen>
                 },
               ),
             ),
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 250),
 
+              top: showStatus ? 60 : -100,
+
+              left: 35,
+
+              right: 35,
+
+              child: AnimatedOpacity(
+                opacity: showStatus ? 1 : 0,
+
+                duration: const Duration(milliseconds: 250),
+
+                child: Material(
+                  color: Colors.transparent,
+
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 15,
+                      horizontal: 20,
+                    ),
+
+                    decoration: BoxDecoration(
+                      color: statusColor,
+
+                      borderRadius: BorderRadius.circular(18),
+
+                      boxShadow: [
+                        BoxShadow(
+                          color: statusColor.withOpacity(.45),
+                          blurRadius: 20,
+                        ),
+                      ],
+                    ),
+
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+
+                      children: [
+                        Icon(
+                          statusColor == Colors.green
+                              ? Icons.check_circle
+                              : statusColor == Colors.red
+                              ? Icons.cancel
+                              : statusColor == Colors.orange
+                              ? Icons.warning
+                              : Icons.info,
+                          color: Colors.white,
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        Text(
+                          statusMessage,
+
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
             // DARK OVERLAY
             Container(color: Colors.black.withOpacity(0.25)),
 
@@ -546,36 +631,51 @@ class _ScanScreenState extends State<ScanScreen>
 
               right: 20,
 
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+              child: GestureDetector(
+                onLongPressStart: (_) {
+                  adminTimer = Timer(const Duration(seconds: 1), () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminPanelScreen(),
+                      ),
+                    );
+                  });
+                },
 
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                onLongPressEnd: (_) {
+                  adminTimer?.cancel();
+                },
 
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
 
-                      vertical: 12,
-                    ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
 
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
 
-                      borderRadius: BorderRadius.circular(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.12),
 
-                      border: Border.all(color: Colors.white.withOpacity(0.2)),
-                    ),
+                        borderRadius: BorderRadius.circular(18),
 
-                    child: Text(
-                      "₹${total.toInt()}",
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                        ),
+                      ),
 
-                      style: const TextStyle(
-                        color: Colors.white,
-
-                        fontSize: 24,
-
-                        fontWeight: FontWeight.bold,
+                      child: Text(
+                        "₹${total.toInt()}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -593,6 +693,7 @@ class _ScanScreenState extends State<ScanScreen>
 
               child: GestureDetector(
                 onTap: () async {
+                  await scannerController.stop();
                   final updatedCart = await Navigator.push(
                     context,
 
@@ -615,7 +716,10 @@ class _ScanScreenState extends State<ScanScreen>
                         total += item.price;
                       }
                     });
+                  } else {
+                    await scannerController.start();
                   }
+                  await scannerController.start();
                 },
 
                 child: AnimatedScale(

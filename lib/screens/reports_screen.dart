@@ -86,7 +86,7 @@ class _ReportsScreenState extends State<ReportsScreen>
 
         int soldCount = 0;
 
-        int soldAmount = 0;
+        int totalProductValue = 0;
 
         final batchesSnapshot = await inventoryDoc.reference
             .collection("batches")
@@ -103,13 +103,27 @@ class _ReportsScreenState extends State<ReportsScreen>
 
             soldCount++;
 
-            soldAmount += ((qrData["soldPrice"] ?? 0) as num).toInt();
+            final productSnapshot = await FirebaseFirestore.instance
+                .collection("products")
+                .where("school", isEqualTo: school)
+                .where("className", isEqualTo: className)
+                .limit(1)
+                .get();
+
+            if (productSnapshot.docs.isNotEmpty) {
+              final productData = productSnapshot.docs.first.data();
+
+              totalProductValue += (productData["price"] ?? 0) as int;
+            }
           }
         }
 
-        tempReport[className] = {"count": soldCount, "amount": soldAmount};
+        tempReport[className] = {
+          "count": soldCount,
+          "amount": totalProductValue,
+        };
 
-        tempRevenue += soldAmount;
+        tempRevenue += totalProductValue;
       }
 
       setState(() {

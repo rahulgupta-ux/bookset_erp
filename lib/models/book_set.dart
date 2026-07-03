@@ -4,6 +4,7 @@ class BookSet {
   final String className;
   final int price;
   final int stock;
+  final String inventoryId;
 
   BookSet({
     required this.qrId,
@@ -11,5 +12,6 @@ class BookSet {
     required this.className,
     required this.price,
     required this.stock,
+    required this.inventoryId,
   });
 }
