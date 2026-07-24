@@ -76,26 +76,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           });
 
       // Mark inventory sold
+      // Mark inventory sold
       final soldPricePerBook = widget.finalTotal ~/ widget.soldBooks.length;
+
       for (var book in widget.soldBooks) {
-        final qrQuery = await FirebaseFirestore.instance
-            .collectionGroup("qrs")
-            .where("qrId", isEqualTo: book.qrId)
-            .limit(1)
-            .get();
+        print("===========");
+        print("Inventory ID : ${book.inventoryId}");
+        print("QR ID : ${book.qrId}");
 
-        if (qrQuery.docs.isEmpty) {
-          continue;
-        }
+        final qrRef = FirebaseFirestore.instance
+            .collection("inventory")
+            .doc(book.inventoryId)
+            .collection("qrs")
+            .doc(book.qrId);
 
-        await qrQuery.docs.first.reference.update({
-          "sold": true,
-          "soldPrice": soldPricePerBook,
-          "originalPrice": book.price,
-          "invoiceId": widget.invoiceId,
-          "soldAt": Timestamp.now(),
-          "status": "sold",
-        });
+        print("PATH : ${qrRef.path}");
+
+        final qrSnap = await qrRef.get();
+
+        print("Exists : ${qrSnap.exists}");
+        // Update QR status
+        // Update QR
+        await FirebaseFirestore.instance
+            .collection("inventory")
+            .doc(book.inventoryId)
+            .collection("qrs")
+            .doc(book.qrId)
+            .update({
+              "sold": true,
+              "status": "sold",
+              "invoiceId": widget.invoiceId,
+              "soldAt": Timestamp.now(),
+
+              // Original set price
+              "originalPrice": book.price,
+
+              // Price after discount allocation
+              "soldPrice": soldPricePerBook,
+            });
+
+        // Update Inventory Stock
+        await FirebaseFirestore.instance
+            .collection("inventory")
+            .doc(book.inventoryId)
+            .update({"inStock": FieldValue.increment(-1)});
       }
 
       if (!context.mounted) {

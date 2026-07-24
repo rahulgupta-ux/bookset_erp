@@ -19,6 +19,7 @@ class _PriceListScreenState extends State<PriceListScreen>
 
   @override
   bool get wantKeepAlive => true;
+  String? expandedSchool;
 
   void _showBookDetails(BuildContext context, Map<String, dynamic> product) {
     final List<dynamic> books = product["books"] ?? [];
@@ -81,8 +82,8 @@ class _PriceListScreenState extends State<PriceListScreen>
                   Text(
                     product["className"] ?? "",
                     style: const TextStyle(
-                      fontSize: 18,
-                      color: AppTheme.textSecondary,
+                      fontSize: 22,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
 
@@ -300,70 +301,162 @@ class _PriceListScreenState extends State<PriceListScreen>
 
                   final docs = snapshot.data!.docs;
 
+                  // Group products by school
+                  final Map<String, List<Map<String, dynamic>>> grouped = {};
+
+                  for (var doc in docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+
+                    final school = data["school"] ?? "";
+
+                    if (!school.toLowerCase().contains(searchText)) {
+                      continue;
+                    }
+
+                    grouped.putIfAbsent(school, () => []);
+
+                    grouped[school]!.add(data);
+                  }
+
+                  final schools = grouped.keys.toList()..sort();
+
                   return ListView.builder(
                     padding: const EdgeInsets.only(bottom: 120),
-                    itemCount: docs.length,
+                    itemCount: schools.length,
                     itemBuilder: (context, index) {
-                      final item = docs[index];
+                      final school = schools[index];
 
-                      final product = item.data() as Map<String, dynamic>;
+                      final products = grouped[school]!;
 
-                      final school = product["school"]?.toString() ?? "";
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 15),
 
-                      final className = product["className"]?.toString() ?? "";
-
-                      final price = product["price"] ?? 0;
-
-                      final matches =
-                          school.toLowerCase().contains(searchText) ||
-                          className.toLowerCase().contains(searchText);
-
-                      if (!matches) {
-                        return const SizedBox();
-                      }
-
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () {
-                          _showBookDetails(context, product);
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 15),
-                          decoration: BoxDecoration(
-                            color: AppTheme.card,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppTheme.border),
+                        decoration: BoxDecoration(
+                          color: AppTheme.card,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: expandedSchool == school
+                                ? AppTheme.primary
+                                : AppTheme.border,
                           ),
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              backgroundColor: AppTheme.primary,
-                              child: Icon(Icons.menu_book, color: Colors.black),
-                            ),
+                        ),
 
-                            title: Text(
-                              school,
-                              style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                        child: ExpansionTile(
+                          key: PageStorageKey(school),
 
-                            subtitle: Text(
-                              className,
-                              style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
+                          initiallyExpanded: expandedSchool == school,
 
-                            trailing: Text(
-                              "₹$price",
-                              style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
+                          onExpansionChanged: (expanded) {
+                            setState(() {
+                              expandedSchool = expanded ? school : null;
+                            });
+                          },
+
+                          collapsedIconColor: AppTheme.textPrimary,
+
+                          iconColor: AppTheme.primary,
+
+                          title: Row(
+                            children: [
+                              const CircleAvatar(
+                                backgroundColor: AppTheme.primary,
+                                child: Icon(Icons.school, color: Colors.black),
                               ),
-                            ),
+
+                              const SizedBox(width: 15),
+
+                              Expanded(
+                                child: Text(
+                                  school,
+                                  style: const TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              ),
+
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+
+                                child: Text(
+                                  "${products.length}",
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+
+                          children: products.map((product) {
+                            return InkWell(
+                              onTap: () {
+                                _showBookDetails(context, product);
+                              },
+
+                              child: Container(
+                                margin: const EdgeInsets.fromLTRB(
+                                  16,
+                                  6,
+                                  16,
+                                  10,
+                                ),
+
+                                padding: const EdgeInsets.all(16),
+
+                                decoration: BoxDecoration(
+                                  color: AppTheme.background,
+
+                                  borderRadius: BorderRadius.circular(15),
+
+                                  border: Border.all(color: AppTheme.border),
+                                ),
+
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.menu_book,
+                                      color: AppTheme.primary,
+                                    ),
+
+                                    const SizedBox(width: 12),
+
+                                    Expanded(
+                                      child: Text(
+                                        product["className"],
+
+                                        style: const TextStyle(
+                                          color: AppTheme.textPrimary,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+
+                                    Text(
+                                      "₹${product["price"]}",
+
+                                      style: const TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
                       );
                     },

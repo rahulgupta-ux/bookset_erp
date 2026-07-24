@@ -8,17 +8,30 @@ import 'screens/reports_screen.dart';
 import 'screens/inventory_screen.dart';
 import 'screens/update_screen.dart';
 import 'core/theme/app_theme.dart';
+import 'package:flutter/foundation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp();
 
+  if (kDebugMode) {
+    runApp(
+      MyApp(
+        updateInfo: UpdateInfo(
+          updateAvailable: false,
+          currentVersion: "debug",
+          latestVersion: "debug",
+          updateMessage: "",
+          downloadUrl: "",
+          forceUpdate: false,
+        ),
+      ),
+    );
+    return;
+  }
+
   final updateInfo = await UpdateService.checkForUpdate();
-  print("Update Available: ${updateInfo.updateAvailable}");
-  print("Current Version: ${updateInfo.currentVersion}");
-  print("Latest Version: ${updateInfo.latestVersion}");
-  print("Update Available: ${updateInfo.updateAvailable}");
 
   runApp(MyApp(updateInfo: updateInfo));
 }

@@ -8,6 +8,7 @@ import 'dart:async';
 import '../models/book_set.dart';
 import 'cart_screen.dart';
 import 'admin_panel_screen.dart';
+import 'dart:collection';
 // import '../services/update_service.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -28,7 +29,9 @@ class _ScanScreenState extends State<ScanScreen>
 
   List<BookSet> cartItems = [];
 
-  bool isScanning = false;
+  final Queue<String> scanQueue = Queue<String>();
+
+  bool isProcessingQueue = false;
 
   double total = 0;
   bool animateBox = false;
@@ -44,99 +47,167 @@ class _ScanScreenState extends State<ScanScreen>
   final TextEditingController manualQrController = TextEditingController();
 
   final Set<String> scannedQrsInCart = {};
+  final Set<String> processingQrs = {};
+
+  String currentProcessingQr = "";
+
+  int processedCount = 0;
+  Map<String, DocumentReference> qrIndex = {};
+
+  Future<void> loadQrIndex() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collectionGroup("qrs")
+        .get();
+
+    qrIndex.clear();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+
+      final qrId = data["qrId"];
+
+      if (qrId != null) {
+        qrIndex[qrId] = doc.reference;
+      }
+    }
+
+    debugPrint("QR Cache Loaded : ${qrIndex.length}");
+  }
 
   Future<void> scanQr(String qrId) async {
-    if (isScanning) return;
-
     if (scannedQrsInCart.contains(qrId)) {
       await showStatusCard("Already Added", Colors.blue);
-
+      processingQrs.remove(qrId);
       return;
     }
 
-    isScanning = true;
-
     try {
-      final qrQuery = await FirebaseFirestore.instance
-          .collectionGroup("qrs")
-          .where("qrId", isEqualTo: qrId)
-          .limit(1)
-          .get();
+      // Search QR
+      final qrReference = qrIndex[qrId];
 
-      final qrDoc = qrQuery.docs.firstOrNull;
+      if (qrReference == null) {
+        processingQrs.remove(qrId);
 
-      if (qrDoc == null) {
         await showStatusCard("QR Not Found", Colors.red);
-
-        isScanning = false;
 
         return;
       }
+
+      final qrDoc = await qrReference.get();
 
       final qrData = qrDoc.data() as Map<String, dynamic>;
 
-      final sold = (qrData["sold"] ?? false) as bool;
+      final sold = qrData["sold"] ?? false;
 
       if (sold) {
         await showStatusCard("Already Sold", Colors.orange);
-
-        isScanning = false;
-
+        processingQrs.remove(qrId);
         return;
       }
 
-      final batchDoc = await qrDoc.reference.parent.parent!.get();
+      // ------------------------------------------
+      // Find Inventory Document
+      // ------------------------------------------
 
-      final inventoryDoc = await batchDoc.reference.parent.parent!.get();
+      DocumentReference inventoryRef;
 
-      final parentData = inventoryDoc.data() as Map<String, dynamic>;
-      print("Inventory Data: $parentData");
+      final parentDoc = qrDoc.reference.parent.parent!;
 
-      final school = parentData["school"]?.toString();
+      if (parentDoc.parent.id == "inventory") {
+        // inventory/{inventoryId}/qrs/{qrId}
+        inventoryRef = parentDoc;
+      } else {
+        // inventory/{inventoryId}/batches/{batchId}/qrs/{qrId}
+        inventoryRef = parentDoc.parent.parent!;
+      }
 
-      final className = parentData["className"]?.toString();
+      final inventorySnapshot = await inventoryRef.get();
 
-      final price = parentData["price"] ?? 0;
+      final inventoryData = inventorySnapshot.data() as Map<String, dynamic>;
 
-      print("School: $school");
-      print("Class: $className");
-      print("Price: $price");
+      final school = inventoryData["school"]?.toString() ?? "Unknown School";
+
+      final className =
+          inventoryData["className"]?.toString() ?? "Unknown Class";
+
+      final price = (inventoryData["price"] ?? 0) as num;
 
       final book = BookSet(
-        school: school ?? "Unknown School",
-        className: className ?? "Unknown Class",
+        school: school,
+        className: className,
         qrId: qrId,
-        price: price,
+        price: price.toInt(),
         stock: 1,
-        inventoryId: inventoryDoc.id,
+        inventoryId: inventorySnapshot.id,
       );
 
       scannedQrsInCart.add(qrId);
 
-      await player.play(AssetSource('sounds/beep2.wav'));
-
-      if (await Vibration.hasVibrator() ?? false) {
-        Vibration.vibrate(duration: 80);
-      }
-
       setState(() {
         cartItems.add(book);
-
-        total += book.price;
+        total += price.toInt();
       });
+
       triggerScanSuccess();
       triggerCartBounce();
 
       await showStatusCard("${book.className} Added", Colors.green);
+      processingQrs.remove(qrId);
     } catch (e) {
+      debugPrint(e.toString());
+      processingQrs.remove(qrId);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  void enqueueQr(String qrId) {
+    qrId = qrId.trim();
+
+    if (scannedQrsInCart.contains(qrId)) return;
+
+    if (processingQrs.contains(qrId)) return;
+
+    if (scanQueue.contains(qrId)) return;
+
+    processingQrs.add(qrId);
+
+    scanQueue.add(qrId);
+
+    player.play(AssetSource("sounds/beep2.wav"));
+
+    Vibration.vibrate(duration: 50);
+
+    processQueue();
+  }
+
+  Future<void> processQueue() async {
+    if (isProcessingQueue) return;
+
+    isProcessingQueue = true;
+
+    while (scanQueue.isNotEmpty) {
+      final qrId = scanQueue.removeFirst();
+
+      setState(() {
+        currentProcessingQr = qrId;
+      });
+
+      await scanQr(qrId);
+
+      processedCount++;
+
+      if (mounted) {
+        setState(() {});
+      }
     }
 
-    await Future.delayed(const Duration(milliseconds: 800));
+    setState(() {
+      currentProcessingQr = "";
+    });
 
-    isScanning = false;
+    isProcessingQueue = false;
   }
 
   Future<void> showStatusCard(String message, Color color) async {
@@ -200,6 +271,8 @@ class _ScanScreenState extends State<ScanScreen>
     super.initState();
 
     startBoxAnimation();
+
+    loadQrIndex();
     // WidgetsBinding.instance.addPostFrameCallback((_) {
     //   UpdateService.checkForUpdates(context);
     // });
@@ -259,9 +332,9 @@ class _ScanScreenState extends State<ScanScreen>
 
                   final code = barcode.rawValue;
 
-                  if (code != null) {
-                    scanQr(code.trim());
-                  }
+                  if (code == null) return;
+
+                  enqueueQr(code);
                 },
               ),
             ),
@@ -329,6 +402,52 @@ class _ScanScreenState extends State<ScanScreen>
                         ),
                       ],
                     ),
+                  ),
+                ),
+              ),
+            ),
+
+            Positioned(
+              top: 125,
+              right: 20,
+              child: AnimatedOpacity(
+                opacity: isProcessingQueue ? 1 : 0,
+                duration: const Duration(milliseconds: 250),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.greenAccent),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "⚡ Processing",
+                        style: TextStyle(
+                          color: Colors.greenAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      Text(
+                        currentProcessingQr,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      Text(
+                        "Waiting : ${scanQueue.length}",
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -583,7 +702,7 @@ class _ScanScreenState extends State<ScanScreen>
                               final qr = manualQrController.text.trim();
 
                               if (qr.isNotEmpty) {
-                                scanQr(qr);
+                                enqueueQr(qr);
 
                                 manualQrController.clear();
 

@@ -33,310 +33,359 @@ class _CartScreenState extends State<CartScreen> {
 
     int finalTotal = total - discount + addValue;
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text("Cart"),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, widget.cartItems);
+        return false;
+      },
+      child: Scaffold(
         backgroundColor: AppTheme.background,
-        foregroundColor: AppTheme.textPrimary,
-        elevation: 0,
-      ),
+        appBar: AppBar(
+          title: const Text("Cart"),
+          backgroundColor: AppTheme.background,
+          foregroundColor: AppTheme.textPrimary,
+          elevation: 0,
 
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+          actions: [
+            IconButton(
+              tooltip: "Clear All",
 
-          child: Column(
-            children: [
-              // CART ITEMS
-              ListView.builder(
-                shrinkWrap: true,
+              icon: const Icon(Icons.delete_sweep),
 
-                physics: const NeverScrollableScrollPhysics(),
-
-                itemCount: widget.cartItems.length,
-
-                itemBuilder: (context, index) {
-                  final item = widget.cartItems[index];
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-
-                    decoration: BoxDecoration(
-                      color: AppTheme.card,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppTheme.border),
-                    ),
-
-                    child: ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.menu_book)),
-
-                      title: Text(
-                        "${item.school} ${item.className}",
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        item.qrId,
-                        style: const TextStyle(color: AppTheme.textSecondary),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text("Clear Cart"),
+                    content: const Text("Remove all items from the cart?"),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text("Cancel"),
                       ),
 
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-
-                        children: [
-                          Text(
-                            "₹${item.price}",
-
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primary,
-                            ),
-                          ),
-
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-
-                            onPressed: () {
-                              final updatedCart = List<BookSet>.from(
-                                widget.cartItems,
-                              )..removeAt(index);
-
-                              Navigator.pop(context, updatedCart);
-                            },
-                          ),
-                        ],
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text("Clear"),
                       ),
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              // TOTAL CARD
-              Container(
-                padding: const EdgeInsets.all(20),
-
-                decoration: BoxDecoration(
-                  color: AppTheme.card,
-                  border: Border.all(color: AppTheme.border),
-
-                  borderRadius: BorderRadius.circular(20),
-                ),
-
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-
-                      children: [
-                        const Text(
-                          "Final Total",
-
-                          style: TextStyle(
-                            fontSize: 22,
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        Text(
-                          "Books: ₹$total",
-                          style: const TextStyle(color: AppTheme.textSecondary),
-                        ),
-
-                        Text(
-                          "Discount: ₹$discount",
-                          style: const TextStyle(color: AppTheme.textSecondary),
-                        ),
-
-                        Text(
-                          "Extra Value: ₹$addValue",
-                          style: const TextStyle(color: AppTheme.textSecondary),
-                        ),
-                      ],
-                    ),
-
-                    Text(
-                      "₹$finalTotal",
-
-                      style: const TextStyle(
-                        fontSize: 30,
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // DISCOUNT
-              TextField(
-                controller: discountController,
-
-                keyboardType: TextInputType.number,
-
-                style: const TextStyle(color: AppTheme.textPrimary),
-
-                onChanged: (_) {
-                  setState(() {});
-                },
-
-                decoration: InputDecoration(
-                  labelText: "Discount",
-
-                  labelStyle: const TextStyle(color: AppTheme.textSecondary),
-
-                  prefixIcon: const Icon(
-                    Icons.add_circle_outline,
-                    color: AppTheme.primary,
+                    ],
                   ),
+                );
 
-                  filled: true,
-
-                  fillColor: AppTheme.card,
-
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(color: AppTheme.border),
-                  ),
-
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(
-                      color: AppTheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 15),
-
-              // EXTRA VALUE
-              TextField(
-                controller: addValueController,
-
-                keyboardType: TextInputType.number,
-
-                style: const TextStyle(color: AppTheme.textPrimary),
-
-                onChanged: (_) {
-                  setState(() {});
-                },
-
-                decoration: InputDecoration(
-                  labelText: "Add Value (Extra Charges)",
-
-                  labelStyle: const TextStyle(color: AppTheme.textSecondary),
-
-                  prefixIcon: const Icon(
-                    Icons.discount,
-                    color: AppTheme.primary,
-                  ),
-
-                  filled: true,
-
-                  fillColor: AppTheme.card,
-
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(color: AppTheme.border),
-                  ),
-
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(
-                      color: AppTheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // SCHOOL SALE
-              SwitchListTile(
-                value: soldToSchool,
-
-                activeColor: AppTheme.primary,
-
-                onChanged: (value) {
+                if (confirm == true) {
                   setState(() {
-                    soldToSchool = value;
+                    widget.cartItems.clear();
                   });
-                },
+                }
+              },
+            ),
+          ],
+        ),
 
-                title: const Text(
-                  "Sold To School",
-                  style: TextStyle(color: AppTheme.textPrimary),
-                ),
-              ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
 
-              const SizedBox(height: 20),
+            child: Column(
+              children: [
+                // CART ITEMS
+                ListView.builder(
+                  shrinkWrap: true,
 
-              // CHECKOUT BUTTON
-              SizedBox(
-                width: double.infinity,
+                  physics: const NeverScrollableScrollPhysics(),
 
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final invoiceId =
-                        "INV-${DateTime.now().millisecondsSinceEpoch}";
+                  itemCount: widget.cartItems.length,
 
-                    final paymentDone = await Navigator.push(
-                      context,
+                  itemBuilder: (context, index) {
+                    final item = widget.cartItems[index];
 
-                      MaterialPageRoute(
-                        builder: (_) => CheckoutScreen(
-                          finalTotal: finalTotal,
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
 
-                          soldToSchool: soldToSchool,
+                      decoration: BoxDecoration(
+                        color: AppTheme.card,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AppTheme.border),
+                      ),
 
-                          invoiceId: invoiceId,
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.menu_book),
+                        ),
 
-                          soldBooks: widget.cartItems,
-                          discount: discount,
+                        title: Text(
+                          "${item.school} ${item.className}",
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          item.qrId,
+                          style: const TextStyle(color: AppTheme.textSecondary),
+                        ),
 
-                          originalTotal: total,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+
+                          children: [
+                            Text(
+                              "₹${item.price}",
+
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  widget.cartItems.removeAt(index);
+                                });
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     );
-
-                    if (paymentDone == true) {
-                      if (!mounted) return;
-
-                      Navigator.pop(context, <BookSet>[]);
-                    }
                   },
+                ),
 
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
+                const SizedBox(height: 20),
+
+                // TOTAL CARD
+                Container(
+                  padding: const EdgeInsets.all(20),
+
+                  decoration: BoxDecoration(
+                    color: AppTheme.card,
+                    border: Border.all(color: AppTheme.border),
+
+                    borderRadius: BorderRadius.circular(20),
                   ),
 
-                  child: const Text("Checkout", style: TextStyle(fontSize: 20)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+
+                        children: [
+                          const Text(
+                            "Final Total",
+
+                            style: TextStyle(
+                              fontSize: 22,
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            "Books: ₹$total",
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+
+                          Text(
+                            "Discount: ₹$discount",
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+
+                          Text(
+                            "Extra Value: ₹$addValue",
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      Text(
+                        "₹$finalTotal",
+
+                        style: const TextStyle(
+                          fontSize: 30,
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 20),
+
+                // DISCOUNT
+                TextField(
+                  controller: discountController,
+
+                  keyboardType: TextInputType.number,
+
+                  style: const TextStyle(color: AppTheme.textPrimary),
+
+                  onChanged: (_) {
+                    setState(() {});
+                  },
+
+                  decoration: InputDecoration(
+                    labelText: "Discount",
+
+                    labelStyle: const TextStyle(color: AppTheme.textSecondary),
+
+                    prefixIcon: const Icon(
+                      Icons.add_circle_outline,
+                      color: AppTheme.primary,
+                    ),
+
+                    filled: true,
+
+                    fillColor: AppTheme.card,
+
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: const BorderSide(color: AppTheme.border),
+                    ),
+
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
+
+                // EXTRA VALUE
+                TextField(
+                  controller: addValueController,
+
+                  keyboardType: TextInputType.number,
+
+                  style: const TextStyle(color: AppTheme.textPrimary),
+
+                  onChanged: (_) {
+                    setState(() {});
+                  },
+
+                  decoration: InputDecoration(
+                    labelText: "Add Value (Extra Charges)",
+
+                    labelStyle: const TextStyle(color: AppTheme.textSecondary),
+
+                    prefixIcon: const Icon(
+                      Icons.discount,
+                      color: AppTheme.primary,
+                    ),
+
+                    filled: true,
+
+                    fillColor: AppTheme.card,
+
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: const BorderSide(color: AppTheme.border),
+                    ),
+
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // SCHOOL SALE
+                SwitchListTile(
+                  value: soldToSchool,
+
+                  activeColor: AppTheme.primary,
+
+                  onChanged: (value) {
+                    setState(() {
+                      soldToSchool = value;
+                    });
+                  },
+
+                  title: const Text(
+                    "Sold To School",
+                    style: TextStyle(color: AppTheme.textPrimary),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // CHECKOUT BUTTON
+                SizedBox(
+                  width: double.infinity,
+
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final invoiceId =
+                          "INV-${DateTime.now().millisecondsSinceEpoch}";
+
+                      final paymentDone = await Navigator.push(
+                        context,
+
+                        MaterialPageRoute(
+                          builder: (_) => CheckoutScreen(
+                            finalTotal: finalTotal,
+
+                            soldToSchool: soldToSchool,
+
+                            invoiceId: invoiceId,
+
+                            soldBooks: widget.cartItems,
+                            discount: discount,
+
+                            originalTotal: total,
+                          ),
+                        ),
+                      );
+
+                      if (paymentDone == true) {
+                        if (!mounted) return;
+
+                        Navigator.pop(context, <BookSet>[]);
+                      }
+                    },
+
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                    ),
+
+                    child: const Text(
+                      "Checkout",
+                      style: TextStyle(fontSize: 20),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -52,85 +52,47 @@ class _ReportsScreenState extends State<ReportsScreen>
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Select School")));
-
       return;
     }
 
     setState(() {
       isLoading = true;
-
       reportData = {};
-
       totalRevenue = 0;
     });
 
     try {
       final inventorySnapshot = await FirebaseFirestore.instance
           .collection("inventory")
+          .where("school", isEqualTo: selectedSchool)
           .get();
 
       Map<String, dynamic> tempReport = {};
-
       int tempRevenue = 0;
 
-      for (var inventoryDoc in inventorySnapshot.docs) {
-        final data = inventoryDoc.data();
+      for (final inventoryDoc in inventorySnapshot.docs) {
+        final inventoryData = inventoryDoc.data();
 
-        final school = data["school"] ?? "";
+        final className = inventoryData["className"] ?? "Unknown";
+        final price = (inventoryData["price"] ?? 0) as num;
 
-        if (school != selectedSchool) {
-          continue;
-        }
-
-        final className = data["className"] ?? "Unknown";
-
-        int soldCount = 0;
-
-        int totalProductValue = 0;
-
-        final batchesSnapshot = await inventoryDoc.reference
-            .collection("batches")
+        final qrSnapshot = await inventoryDoc.reference
+            .collection("qrs")
+            .where("sold", isEqualTo: true)
             .get();
 
-        for (var batchDoc in batchesSnapshot.docs) {
-          final soldQrSnapshot = await batchDoc.reference
-              .collection("qrs")
-              .where("sold", isEqualTo: true)
-              .get();
+        final soldCount = qrSnapshot.docs.length;
 
-          for (var qrDoc in soldQrSnapshot.docs) {
-            final qrData = qrDoc.data();
+        final amount = soldCount * price.toInt();
 
-            soldCount++;
+        tempReport[className] = {"count": soldCount, "amount": amount};
 
-            final productSnapshot = await FirebaseFirestore.instance
-                .collection("products")
-                .where("school", isEqualTo: school)
-                .where("className", isEqualTo: className)
-                .limit(1)
-                .get();
-
-            if (productSnapshot.docs.isNotEmpty) {
-              final productData = productSnapshot.docs.first.data();
-
-              totalProductValue += (productData["price"] ?? 0) as int;
-            }
-          }
-        }
-
-        tempReport[className] = {
-          "count": soldCount,
-          "amount": totalProductValue,
-        };
-
-        tempRevenue += totalProductValue;
+        tempRevenue += amount;
       }
 
       setState(() {
         reportData = tempReport;
-
         totalRevenue = tempRevenue;
-
         isLoading = false;
       });
     } catch (e) {

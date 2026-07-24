@@ -24,6 +24,7 @@ class _InventoryScreenState extends State<InventoryScreen>
 
   @override
   bool get wantKeepAlive => true;
+  String? expandedSchool;
   @override
   void initState() {
     super.initState();
@@ -202,6 +203,7 @@ class _InventoryScreenState extends State<InventoryScreen>
           "sold": false,
           "invoiceId": "",
           "createdAt": Timestamp.now(),
+          "inventoryId": inventoryId,
         });
       }
 
@@ -478,166 +480,347 @@ class _InventoryScreenState extends State<InventoryScreen>
 
                   return RefreshIndicator(
                     onRefresh: refreshInventory,
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: docs.length,
 
-                      itemBuilder: (context, index) {
-                        final item = docs[index];
+                    child: Builder(
+                      builder: (context) {
+                        final Map<String, List<QueryDocumentSnapshot>> grouped =
+                            {};
 
-                        final school = item["school"];
+                        for (var doc in docs) {
+                          final data = doc.data() as Map<String, dynamic>;
 
-                        final className = item["className"];
+                          final school = (data["school"] ?? "").toString();
 
-                        final price = item["price"];
+                          if (!school.toLowerCase().contains(searchText)) {
+                            continue;
+                          }
 
-                        final inventoryId = item.id;
+                          grouped.putIfAbsent(school, () => []);
 
-                        final inStock = item["inStock"] ?? 0;
-
-                        final availableStock = item["availableStock"] ?? 0;
-
-                        final searchTarget = "$school $className".toLowerCase();
-
-                        if (!searchTarget.contains(searchText)) {
-                          return const SizedBox();
+                          grouped[school]!.add(doc);
                         }
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 15),
+                        final schools = grouped.keys.toList()..sort();
 
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF161B22),
+                        return ListView.builder(
+                          shrinkWrap: true,
 
-                            borderRadius: BorderRadius.circular(20),
+                          physics: const NeverScrollableScrollPhysics(),
 
-                            border: Border.all(color: const Color(0xFF21262D)),
-                          ),
+                          itemCount: schools.length,
 
-                          child: Column(
-                            children: [
-                              ListTile(
-                                leading: const CircleAvatar(
-                                  backgroundColor: Color(0xFF10A37F),
+                          itemBuilder: (context, index) {
+                            final school = schools[index];
 
-                                  child: Icon(Icons.book, color: Colors.black),
+                            final inventories = grouped[school]!;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 15),
+
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF161B22),
+
+                                borderRadius: BorderRadius.circular(20),
+
+                                border: Border.all(
+                                  color: expandedSchool == school
+                                      ? const Color(0xFF10A37F)
+                                      : const Color(0xFF21262D),
                                 ),
+                              ),
 
-                                title: Text(
-                                  school,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                              child: ExpansionTile(
+                                key: PageStorageKey(school),
 
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                initiallyExpanded: expandedSchool == school,
 
+                                onExpansionChanged: (expanded) {
+                                  setState(() {
+                                    expandedSchool = expanded ? school : null;
+                                  });
+                                },
+
+                                collapsedIconColor: Colors.white,
+
+                                iconColor: const Color(0xFF10A37F),
+
+                                title: Row(
                                   children: [
-                                    const SizedBox(height: 6),
+                                    const CircleAvatar(
+                                      backgroundColor: Color(0xFF10A37F),
 
-                                    Text(
-                                      className,
-                                      style: const TextStyle(
-                                        color: Colors.white70,
+                                      child: Icon(
+                                        Icons.school,
+                                        color: Colors.black,
                                       ),
                                     ),
 
-                                    const SizedBox(height: 6),
+                                    const SizedBox(width: 15),
 
-                                    Text(
-                                      "🏪 Shop Stock : $inStock",
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                                    Expanded(
+                                      child: Text(
+                                        school,
+
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                        ),
                                       ),
                                     ),
 
-                                    Text(
-                                      "📦 Godown Stock : $availableStock",
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 5,
+                                      ),
+
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10A37F),
+
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+
+                                      child: Text(
+                                        "${inventories.length}",
+
+                                        style: const TextStyle(
+                                          color: Colors.black,
+
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-
-                                    if (inStock < 5)
-                                      Container(
-                                        margin: const EdgeInsets.only(top: 8),
-
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 6,
-                                        ),
-
-                                        decoration: BoxDecoration(
-                                          color: Colors.orange.withOpacity(
-                                            0.15,
-                                          ),
-
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-
-                                        child: const Text(
-                                          "⚠ Refill Required",
-                                          style: TextStyle(
-                                            color: Colors.orange,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
                                   ],
                                 ),
 
-                                trailing: Text(
-                                  "₹$price",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
+                                children: expandedSchool == school
+                                    ? inventories.map((doc) {
+                                        final item =
+                                            doc.data() as Map<String, dynamic>;
+
+                                        final inventoryId = doc.id;
+
+                                        final className =
+                                            item["className"] ?? "";
+
+                                        final price = item["price"] ?? 0;
+
+                                        final inStock = item["inStock"] ?? 0;
+
+                                        final availableStock =
+                                            item["availableStock"] ?? 0;
+
+                                        return Container(
+                                          margin: const EdgeInsets.fromLTRB(
+                                            16,
+                                            6,
+                                            16,
+                                            12,
+                                          ),
+
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF0D1117),
+
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+
+                                            border: Border.all(
+                                              color: const Color(0xFF21262D),
+                                            ),
+                                          ),
+
+                                          child: Column(
+                                            children: [
+                                              ListTile(
+                                                leading: const CircleAvatar(
+                                                  backgroundColor: Color(
+                                                    0xFF10A37F,
+                                                  ),
+
+                                                  child: Icon(
+                                                    Icons.menu_book,
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
+
+                                                title: Text(
+                                                  className,
+
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+
+                                                    fontWeight: FontWeight.bold,
+
+                                                    fontSize: 18,
+                                                  ),
+                                                ),
+
+                                                subtitle: Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 8,
+                                                      ),
+
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+
+                                                    children: [
+                                                      Text(
+                                                        "🏪 Shop Stock : $inStock",
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+
+                                                      const SizedBox(height: 4),
+
+                                                      Text(
+                                                        "📦 Godown Stock : $availableStock",
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+
+                                                      if (inStock < 5)
+                                                        Container(
+                                                          margin:
+                                                              const EdgeInsets.only(
+                                                                top: 10,
+                                                              ),
+
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 12,
+                                                                vertical: 6,
+                                                              ),
+
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.orange
+                                                                .withOpacity(
+                                                                  .15,
+                                                                ),
+
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+
+                                                          child: const Text(
+                                                            "⚠ Refill Required",
+
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.orange,
+
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+
+                                                trailing: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.currency_rupee,
+                                                      color: Color(0xFF10A37F),
+                                                      size: 18,
+                                                    ),
+
+                                                    Text(
+                                                      "$price",
+
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+
+                                                        fontWeight:
+                                                            FontWeight.bold,
+
+                                                        fontSize: 18,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.fromLTRB(
+                                                      12,
+                                                      0,
+                                                      12,
+                                                      12,
+                                                    ),
+
+                                                child: SizedBox(
+                                                  width: double.infinity,
+
+                                                  child: ElevatedButton.icon(
+                                                    onPressed: () {
+                                                      transferToShop(
+                                                        inventoryId,
+                                                        availableStock,
+                                                        inStock,
+                                                      );
+                                                    },
+
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          const Color(
+                                                            0xFF10A37F,
+                                                          ),
+
+                                                      foregroundColor:
+                                                          Colors.black,
+
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              14,
+                                                            ),
+                                                      ),
+
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            vertical: 14,
+                                                          ),
+                                                    ),
+
+                                                    icon: const Icon(
+                                                      Icons.swap_horiz,
+                                                    ),
+
+                                                    label: const Text(
+                                                      "Transfer To Shop",
+
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 16,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList()
+                                    : [],
                               ),
-
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 12,
-                                  right: 12,
-                                  bottom: 12,
-                                ),
-
-                                child: SizedBox(
-                                  width: double.infinity,
-
-                                  child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      transferToShop(
-                                        inventoryId,
-                                        availableStock,
-                                        inStock,
-                                      );
-                                    },
-
-                                    icon: const Icon(Icons.swap_horiz),
-
-                                    label: const Text("Transfer To Shop"),
-
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF10A37F),
-
-                                      foregroundColor: Colors.black,
-
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         );
                       },
                     ),

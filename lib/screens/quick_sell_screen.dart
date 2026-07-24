@@ -1,217 +1,217 @@
-import 'package:flutter/material.dart';
+// import 'package:flutter/material.dart';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:mobile_scanner/mobile_scanner.dart';
+// import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../models/book_set.dart';
+// import '../models/book_set.dart';
 
-import 'cart_screen.dart';
+// import 'cart_screen.dart';
 
-class QuickSellScreen extends StatefulWidget {
-  const QuickSellScreen({super.key});
+// class QuickSellScreen extends StatefulWidget {
+//   const QuickSellScreen({super.key});
 
-  @override
-  State<QuickSellScreen> createState() => _QuickSellScreenState();
-}
+//   @override
+//   State<QuickSellScreen> createState() => _QuickSellScreenState();
+// }
 
-class _QuickSellScreenState extends State<QuickSellScreen> {
-  List<BookSet> cartItems = [];
+// class _QuickSellScreenState extends State<QuickSellScreen> {
+//   List<BookSet> cartItems = [];
 
-  bool isScanning = false;
+//   bool isScanning = false;
 
-  double total = 0;
+//   double total = 0;
 
-  Future<void> scanQr(String qrId) async {
-    if (isScanning) return;
+//   Future<void> scanQr(String qrId) async {
+//     if (isScanning) return;
 
-    isScanning = true;
+//     isScanning = true;
 
-    final soldCheck = await FirebaseFirestore.instance
-        .collection("sold_qrs")
-        .doc(qrId)
-        .get();
+//     final soldCheck = await FirebaseFirestore.instance
+//         .collection("sold_qrs")
+//         .doc(qrId)
+//         .get();
 
-    if (soldCheck.exists) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("QR already SOLD")));
+//     if (soldCheck.exists) {
+//       ScaffoldMessenger.of(
+//         context,
+//       ).showSnackBar(const SnackBar(content: Text("QR already SOLD")));
 
-      isScanning = false;
+//       isScanning = false;
 
-      return;
-    }
+//       return;
+//     }
 
-    final snapshot = await FirebaseFirestore.instance
-        .collection("inventory")
-        .doc(qrId)
-        .get();
+//     final snapshot = await FirebaseFirestore.instance
+//         .collection("inventory")
+//         .doc(qrId)
+//         .get();
 
-    if (!snapshot.exists) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("QR not found")));
+//     if (!snapshot.exists) {
+//       ScaffoldMessenger.of(
+//         context,
+//       ).showSnackBar(const SnackBar(content: Text("QR not found")));
 
-      isScanning = false;
+//       isScanning = false;
 
-      return;
-    }
+//       return;
+//     }
 
-    final data = snapshot.data()!;
+//     final data = snapshot.data()!;
 
-    final alreadyAdded = cartItems.any((item) => item.qrId == qrId);
+//     final alreadyAdded = cartItems.any((item) => item.qrId == qrId);
 
-    if (alreadyAdded) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Already Added")));
+//     if (alreadyAdded) {
+//       ScaffoldMessenger.of(
+//         context,
+//       ).showSnackBar(const SnackBar(content: Text("Already Added")));
 
-      isScanning = false;
+//       isScanning = false;
 
-      return;
-    }
+//       return;
+//     }
 
-    final book = BookSet(
-      school: data["school"],
+//     final book = BookSet(
+//       school: data["school"],
 
-      className: data["className"],
+//       className: data["className"],
 
-      qrId: data["qrId"],
+//       qrId: data["qrId"],
 
-      price: data["price"],
+//       price: data["price"],
 
-      stock: 1,
-    );
+//       stock: 1,
+//     );
 
-    setState(() {
-      cartItems.add(book);
+//     setState(() {
+//       cartItems.add(book);
 
-      total += book.price;
-    });
+//       total += book.price;
+//     });
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("${book.className} Added")));
+//     ScaffoldMessenger.of(
+//       context,
+//     ).showSnackBar(SnackBar(content: Text("${book.className} Added")));
 
-    await Future.delayed(const Duration(milliseconds: 800));
+//     await Future.delayed(const Duration(milliseconds: 800));
 
-    isScanning = false;
-  }
+//     isScanning = false;
+//   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Quick Sell Mode"),
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text("Quick Sell Mode"),
 
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
+//         actions: [
+//           IconButton(
+//             onPressed: () {
+//               Navigator.push(
+//                 context,
 
-                MaterialPageRoute(
-                  builder: (_) => CartScreen(cartItems: cartItems),
-                ),
-              );
-            },
+//                 MaterialPageRoute(
+//                   builder: (_) => CartScreen(cartItems: cartItems),
+//                 ),
+//               );
+//             },
 
-            icon: Stack(
-              children: [
-                const Icon(Icons.shopping_cart),
+//             icon: Stack(
+//               children: [
+//                 const Icon(Icons.shopping_cart),
 
-                Positioned(
-                  right: 0,
+//                 Positioned(
+//                   right: 0,
 
-                  child: CircleAvatar(
-                    radius: 8,
+//                   child: CircleAvatar(
+//                     radius: 8,
 
-                    backgroundColor: Colors.red,
+//                     backgroundColor: Colors.red,
 
-                    child: Text(
-                      cartItems.length.toString(),
+//                     child: Text(
+//                       cartItems.length.toString(),
 
-                      style: const TextStyle(fontSize: 10, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+//                       style: const TextStyle(fontSize: 10, color: Colors.white),
+//                     ),
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
 
-      body: Column(
-        children: [
-          Expanded(
-            flex: 4,
+//       body: Column(
+//         children: [
+//           Expanded(
+//             flex: 4,
 
-            child: MobileScanner(
-              onDetect: (capture) {
-                final barcode = capture.barcodes.first;
+//             child: MobileScanner(
+//               onDetect: (capture) {
+//                 final barcode = capture.barcodes.first;
 
-                final code = barcode.rawValue;
+//                 final code = barcode.rawValue;
 
-                if (code != null) {
-                  scanQr(code.trim());
-                }
-              },
-            ),
-          ),
+//                 if (code != null) {
+//                   scanQr(code.trim());
+//                 }
+//               },
+//             ),
+//           ),
 
-          Expanded(
-            flex: 2,
+//           Expanded(
+//             flex: 2,
 
-            child: Container(
-              width: double.infinity,
+//             child: Container(
+//               width: double.infinity,
 
-              padding: const EdgeInsets.all(20),
+//               padding: const EdgeInsets.all(20),
 
-              decoration: BoxDecoration(color: Colors.blue.shade50),
+//               decoration: BoxDecoration(color: Colors.blue.shade50),
 
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
 
-                children: [
-                  const Text(
-                    "Current Cart",
+//                 children: [
+//                   const Text(
+//                     "Current Cart",
 
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
+//                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+//                   ),
 
-                  const SizedBox(height: 15),
+//                   const SizedBox(height: 15),
 
-                  Expanded(
-                    child: ListView(
-                      children: cartItems.map((item) {
-                        return ListTile(
-                          title: Text(item.school),
+//                   Expanded(
+//                     child: ListView(
+//                       children: cartItems.map((item) {
+//                         return ListTile(
+//                           title: Text(item.school),
 
-                          subtitle: Text(item.className),
+//                           subtitle: Text(item.className),
 
-                          trailing: Text("₹${item.price}"),
-                        );
-                      }).toList(),
-                    ),
-                  ),
+//                           trailing: Text("₹${item.price}"),
+//                         );
+//                       }).toList(),
+//                     ),
+//                   ),
 
-                  const SizedBox(height: 10),
+//                   const SizedBox(height: 10),
 
-                  Text(
-                    "Total: ₹$total",
+//                   Text(
+//                     "Total: ₹$total",
 
-                    style: const TextStyle(
-                      fontSize: 28,
+//                     style: const TextStyle(
+//                       fontSize: 28,
 
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+//                       fontWeight: FontWeight.bold,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }

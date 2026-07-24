@@ -111,7 +111,10 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
 
                           trailing: Text(
                             "₹$price",
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
                           ),
 
                           onTap: () {
@@ -377,6 +380,7 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
                                                   label: const Text(
                                                     "SAVE CHANGES",
                                                     style: TextStyle(
+                                                      color: Colors.white,
                                                       fontSize: 18,
                                                       fontWeight:
                                                           FontWeight.bold,
