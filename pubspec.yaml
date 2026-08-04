@@ -42,6 +42,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
 
 
   flutter_lints: ^6.0.0
@@ -51,3 +52,13 @@ flutter:
   uses-material-design: true
   assets:
     - assets/sounds/beep2.wav
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo.png"
+
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo.png"
+
+  min_sdk_android: 21

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/report_service.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -62,37 +63,13 @@ class _ReportsScreenState extends State<ReportsScreen>
     });
 
     try {
-      final inventorySnapshot = await FirebaseFirestore.instance
-          .collection("inventory")
-          .where("school", isEqualTo: selectedSchool)
-          .get();
-
-      Map<String, dynamic> tempReport = {};
-      int tempRevenue = 0;
-
-      for (final inventoryDoc in inventorySnapshot.docs) {
-        final inventoryData = inventoryDoc.data();
-
-        final className = inventoryData["className"] ?? "Unknown";
-        final price = (inventoryData["price"] ?? 0) as num;
-
-        final qrSnapshot = await inventoryDoc.reference
-            .collection("qrs")
-            .where("sold", isEqualTo: true)
-            .get();
-
-        final soldCount = qrSnapshot.docs.length;
-
-        final amount = soldCount * price.toInt();
-
-        tempReport[className] = {"count": soldCount, "amount": amount};
-
-        tempRevenue += amount;
-      }
+      final report = await ReportService().generateSchoolReport(
+        selectedSchool!,
+      );
 
       setState(() {
-        reportData = tempReport;
-        totalRevenue = tempRevenue;
+        reportData = report.classReport;
+        totalRevenue = report.totalRevenue;
         isLoading = false;
       });
     } catch (e) {
@@ -276,6 +253,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                     columns: const [
                       DataColumn(label: Text("Class")),
 
+                      DataColumn(label: Text("Total Sets")),
+
                       DataColumn(label: Text("Sets Sold")),
 
                       DataColumn(label: Text("Amount")),
@@ -289,6 +268,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                       return DataRow(
                         cells: [
                           DataCell(Text(className)),
+
+                          DataCell(Text(data["totalSets"].toString())),
 
                           DataCell(Text(data["count"].toString())),
 

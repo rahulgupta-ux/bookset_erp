@@ -30,6 +30,7 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
+    
 
     buildTypes {
         release {

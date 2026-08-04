@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'sales_history_screen.dart';
 import '../core/theme/app_theme.dart';
+import '../services/report_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,6 +16,10 @@ class _HomeScreenState extends State<HomeScreen>
   double todaySales = 0;
 
   int booksSold = 0;
+
+  int totalSales = 0;
+
+  int totalSetsSold = 0;
 
   int inventoryCount = 0;
 
@@ -65,9 +70,7 @@ class _HomeScreenState extends State<HomeScreen>
       for (var doc in salesSnapshot.docs) {
         final data = doc.data();
 
-        sales +=
-            ((data["finalTotal"] ?? 0) as num)
-                .toDouble();
+        sales += ((data["finalTotal"] ?? 0) as num).toDouble();
 
         final books = data["books"] as List?;
 
@@ -80,6 +83,12 @@ class _HomeScreenState extends State<HomeScreen>
         salesList.add(data);
       }
 
+      //==============================
+      // Lifetime Sales
+      //==============================
+
+      final dashboard = await ReportService().generateDashboardReport();
+
       final inventorySnapshot = await FirebaseFirestore.instance
           .collection("inventory")
           .get();
@@ -87,11 +96,9 @@ class _HomeScreenState extends State<HomeScreen>
       for (var doc in inventorySnapshot.docs) {
         final data = doc.data();
 
-        final shopStock =
-        (data["inStock"] ?? 0) as int;
+        final shopStock = (data["inStock"] ?? 0) as int;
 
-        final godownStock =
-        (data["availableStock"] ?? 0) as int;
+        final godownStock = (data["availableStock"] ?? 0) as int;
 
         inventory += shopStock + godownStock;
       }
@@ -104,6 +111,10 @@ class _HomeScreenState extends State<HomeScreen>
         schoolSales = schoolSaleCount;
 
         inventoryCount = inventory;
+
+        totalSales = dashboard.totalRevenue;
+
+        totalSetsSold = dashboard.totalSetsSold;
 
         recentSales = salesList.reversed.take(5).toList();
 
@@ -208,6 +219,32 @@ class _HomeScreenState extends State<HomeScreen>
                         icon: Icons.shopping_cart,
 
                         color: AppTheme.info,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildCard(
+                        title: "Total Sales",
+                        value: "₹${totalSales.toStringAsFixed(0)}",
+                        icon: Icons.payments_rounded,
+                        color: Colors.deepPurple,
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: _buildCard(
+                        title: "Total Sets Sold",
+                        value: "$totalSetsSold",
+                        icon: Icons.auto_stories_rounded,
+                        color: Colors.teal,
                       ),
                     ),
                   ],

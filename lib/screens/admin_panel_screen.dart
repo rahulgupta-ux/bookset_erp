@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'product_manager_screen.dart';
 import 'school_manager_price.dart';
 import 'product_editor_screen.dart';
+import 'common/qr_scanner_screen.dart';
+import 'correction_screen.dart';
 
 class AdminPanelScreen extends StatelessWidget {
   const AdminPanelScreen({super.key});
@@ -75,13 +77,14 @@ class AdminPanelScreen extends StatelessWidget {
 
             _adminCard(
               context,
-              Icons.currency_rupee,
-              "Price\nManager",
-              Colors.purple,
+              Icons.fact_check,
+              "Stock\nReconciliation",
+              Colors.deepPurple,
               () {
-                ScaffoldMessenger.of(
+                Navigator.push(
                   context,
-                ).showSnackBar(const SnackBar(content: Text("Coming Soon")));
+                  MaterialPageRoute(builder: (_) => const CorrectionScreen()),
+                );
               },
             ),
 

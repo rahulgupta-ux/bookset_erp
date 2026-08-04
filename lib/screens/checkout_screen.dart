@@ -209,8 +209,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: QrImageView(
                 data:
                     "upi://pay?"
-                    "pa=BHARATPE.0104724121@indus"
-                    "&pn=AVNISH GUPTA"
+                    "pa=BHARATPE.9H0P0N1D0E085667@unitype"
+                    "&pn=RAJENDRA GENERAL STORE"
                     "&am=${widget.finalTotal}"
                     "&cu=INR"
                     "&tn=${widget.invoiceId}",

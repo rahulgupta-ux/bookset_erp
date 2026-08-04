@@ -9,6 +9,8 @@ import '../models/book_set.dart';
 import 'cart_screen.dart';
 import 'admin_panel_screen.dart';
 import 'dart:collection';
+import '../repositories/inventory_repository.dart';
+
 // import '../services/update_service.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -51,8 +53,9 @@ class _ScanScreenState extends State<ScanScreen>
 
   String currentProcessingQr = "";
 
-  int processedCount = 0;
   Map<String, DocumentReference> qrIndex = {};
+  final InventoryRepository repository = InventoryRepository();
+  bool cacheLoaded = false;
 
   Future<void> loadQrIndex() async {
     final snapshot = await FirebaseFirestore.instance
@@ -93,66 +96,40 @@ class _ScanScreenState extends State<ScanScreen>
         return;
       }
 
-      final qrDoc = await qrReference.get();
+      BookSet? book;
 
-      final qrData = qrDoc.data() as Map<String, dynamic>;
+      try {
+        book = await repository.findBookByQr(qrId, qrReference);
 
-      final sold = qrData["sold"] ?? false;
+        if (book == null) {
+          processingQrs.remove(qrId);
+          await showStatusCard("QR Not Found", Colors.red);
+          return;
+        }
 
-      if (sold) {
-        await showStatusCard("Already Sold", Colors.orange);
+        scannedQrsInCart.add(qrId);
+
+        setState(() {
+          cartItems.add(book!);
+          total += book!.price;
+        });
+
+        triggerScanSuccess();
+        triggerCartBounce();
+
+        await showStatusCard("${book!.className} Added", Colors.green);
+
         processingQrs.remove(qrId);
-        return;
+      } catch (e) {
+        processingQrs.remove(qrId);
+
+        if (e.toString().contains("ALREADY_SOLD")) {
+          await showStatusCard("Already Sold", Colors.orange);
+          return;
+        }
+
+        rethrow;
       }
-
-      // ------------------------------------------
-      // Find Inventory Document
-      // ------------------------------------------
-
-      DocumentReference inventoryRef;
-
-      final parentDoc = qrDoc.reference.parent.parent!;
-
-      if (parentDoc.parent.id == "inventory") {
-        // inventory/{inventoryId}/qrs/{qrId}
-        inventoryRef = parentDoc;
-      } else {
-        // inventory/{inventoryId}/batches/{batchId}/qrs/{qrId}
-        inventoryRef = parentDoc.parent.parent!;
-      }
-
-      final inventorySnapshot = await inventoryRef.get();
-
-      final inventoryData = inventorySnapshot.data() as Map<String, dynamic>;
-
-      final school = inventoryData["school"]?.toString() ?? "Unknown School";
-
-      final className =
-          inventoryData["className"]?.toString() ?? "Unknown Class";
-
-      final price = (inventoryData["price"] ?? 0) as num;
-
-      final book = BookSet(
-        school: school,
-        className: className,
-        qrId: qrId,
-        price: price.toInt(),
-        stock: 1,
-        inventoryId: inventorySnapshot.id,
-      );
-
-      scannedQrsInCart.add(qrId);
-
-      setState(() {
-        cartItems.add(book);
-        total += price.toInt();
-      });
-
-      triggerScanSuccess();
-      triggerCartBounce();
-
-      await showStatusCard("${book.className} Added", Colors.green);
-      processingQrs.remove(qrId);
     } catch (e) {
       debugPrint(e.toString());
       processingQrs.remove(qrId);
@@ -196,8 +173,6 @@ class _ScanScreenState extends State<ScanScreen>
 
       await scanQr(qrId);
 
-      processedCount++;
-
       if (mounted) {
         setState(() {});
       }
@@ -205,9 +180,8 @@ class _ScanScreenState extends State<ScanScreen>
 
     setState(() {
       currentProcessingQr = "";
+      isProcessingQueue = false;
     });
-
-    isProcessingQueue = false;
   }
 
   Future<void> showStatusCard(String message, Color color) async {
@@ -266,16 +240,23 @@ class _ScanScreenState extends State<ScanScreen>
     manualQrController.dispose();
   }
 
+  Future<void> initializeCache() async {
+    await loadQrIndex();
+
+    if (!mounted) return;
+
+    setState(() {
+      cacheLoaded = true;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
 
     startBoxAnimation();
 
-    loadQrIndex();
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   UpdateService.checkForUpdates(context);
-    // });
+    initializeCache();
   }
 
   void startBoxAnimation() {
@@ -297,7 +278,9 @@ class _ScanScreenState extends State<ScanScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-
+    if (!cacheLoaded) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     return Scaffold(
       body: GestureDetector(
         onTap: () {

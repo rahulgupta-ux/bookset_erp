@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "274981186128",
+    "project_id": "bookset-erp-dev",
+    "storage_bucket": "bookset-erp-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:274981186128:android:a6a0ca3ad0f043dd733f55",
+        "android_client_info": {
+          "package_name": "com.rahul.bookseterp.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKtM12xYcJIyLOpW6IaHIBdqTk7vJGsZw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

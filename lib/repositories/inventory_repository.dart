@@ -1,24 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../models/book_set.dart';
 
 class InventoryRepository {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  Future<BookSet?> findBookByQr(String qrId) async {
-    final qrQuery = await firestore
-        .collectionGroup("qrs")
-        .where("qrId", isEqualTo: qrId)
-        .limit(1)
-        .get();
+  Future<BookSet?> findBookByQr(
+    String qrId,
+    DocumentReference qrReference,
+  ) async {
+    final qrSnapshot = await qrReference.get();
 
-    if (qrQuery.docs.isEmpty) {
+    if (!qrSnapshot.exists) {
       return null;
     }
 
-    final qrDoc = qrQuery.docs.first;
+    final qrDoc = qrSnapshot;
 
-    final qrData = qrDoc.data();
+    final qrData = qrDoc.data() as Map<String, dynamic>;
 
     if ((qrData["sold"] ?? false)) {
       throw Exception("ALREADY_SOLD");
@@ -28,10 +26,10 @@ class InventoryRepository {
 
     final parentDoc = qrDoc.reference.parent.parent!;
 
-    if (parentDoc.parent.id == "inventory") {
+    if (parentDoc.parent!.id == "inventory") {
       inventoryRef = parentDoc;
     } else {
-      inventoryRef = parentDoc.parent.parent!;
+      inventoryRef = parentDoc.parent!.parent!;
     }
 
     final inventorySnapshot = await inventoryRef.get();
